@@ -9,7 +9,7 @@ env:
 
 jobs:
   build-and-test:
-    name: Build and Test Rlox
+    name: Build and Test rlox
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -19,12 +19,16 @@ jobs:
         run: |
           cargo build --release --verbose
 
+      - name: Clippy
+        run: |
+          cargo clippy --release --verbose
+
       - name: Test
         run: |
           cargo test --release --verbose
 
   format:
-    name: Format Rlox
+    name: Format rlox
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
