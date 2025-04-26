@@ -1,0 +1,35 @@
+name: 'CI: Build, Test and Format'
+
+on:
+  push:
+  pull_request:
+
+env: 
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-and-test:
+    name: Build and Test Rlox
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@4
+
+      - name: Build
+        run: |
+          cargo build --release --verbose
+
+      - name: Test
+        run: |
+          cargo test --release --verbose
+
+  format:
+    name: Format Rlox
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@4
+
+      - name: Check formatting
+        run: |
+          cargo fmt --all -- --check
