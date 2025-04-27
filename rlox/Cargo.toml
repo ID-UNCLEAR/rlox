@@ -1,0 +1,18 @@
+[package]
+name = "rlox"
+version = "0.1.0"
+license = "MIT"
+description = "A LOX compiler written in Rust."
+repository = "https://github.com/ID-UNCLEAR/rlox"
+edition.workspace = true
+rust-version.workspace = true
+include = [
+    "src/**/*.rs"
+]
+
+[dependencies]
+rlox_ast      = { path = "../rlox_ast",      version = "0.1.0" }
+rlox_scanner  = { path = "../rlox_scanner",  version = "0.1.0" }
+rlox_parser   = { path = "../rlox_parser",   version = "0.1.0" }
+rlox_semantic = { path = "../rlox_semantic", version = "0.1.0" }
+rlox_codegen  = { path = "../rlox_codegen",  version = "0.1.0" }

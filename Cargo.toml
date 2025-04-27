@@ -1,6 +1,14 @@
-[package]
-name = "rlox"
-version = "0.1.0"
-edition = "2024"
+[workspace]
+resolver = "3"
+members = [
+    "rlox",
+    "rlox_ast",
+    "rlox_codegen",
+    "rlox_parser",
+    "rlox_scanner",
+    "rlox_semantic"
+]
 
-[dependencies]
+[workspace.package]
+edition = "2024"
+rust-version = "1.86"

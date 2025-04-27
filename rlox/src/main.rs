@@ -1,7 +1,7 @@
 use std::env;
 use std::env::Args;
 use std::fs::File;
-use std::io::{self, prelude::*, BufReader};
+use std::io::{self, BufReader, prelude::*};
 use std::path::Path;
 
 fn main() -> io::Result<()> {
@@ -12,11 +12,21 @@ fn main() -> io::Result<()> {
     Ok(())
 }
 
+// fn main() -> io::Result<()> {
+//     let src = std::fs::read_to_string("input.rlox")?;
+//     let tokens = scanner::tokenize(&src)?;
+//     let ast    = parser::parse(tokens)?;
+//     semantic::check(&ast)?;
+//     codegen::emit(&ast)?;
+//     Ok(())
+// }
+
 fn get_path_argument() -> String {
     let mut args: Args = env::args();
     while let Some(arg) = args.next() {
         if arg == "--path" {
-            return args.next()
+            return args
+                .next()
                 .expect("No value provided for `--path` argument!");
         }
     }

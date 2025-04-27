@@ -5,3 +5,42 @@ version = 4
 [[package]]
 name = "rlox"
 version = "0.1.0"
+dependencies = [
+ "rlox_ast",
+ "rlox_codegen",
+ "rlox_parser",
+ "rlox_scanner",
+ "rlox_semantic",
+]
+
+[[package]]
+name = "rlox_ast"
+version = "0.1.0"
+
+[[package]]
+name = "rlox_codegen"
+version = "0.1.0"
+dependencies = [
+ "rlox_ast",
+ "rlox_semantic",
+]
+
+[[package]]
+name = "rlox_parser"
+version = "0.1.0"
+dependencies = [
+ "rlox_ast",
+ "rlox_scanner",
+]
+
+[[package]]
+name = "rlox_scanner"
+version = "0.1.0"
+
+[[package]]
+name = "rlox_semantic"
+version = "0.1.0"
+dependencies = [
+ "rlox_ast",
+ "rlox_parser",
+]

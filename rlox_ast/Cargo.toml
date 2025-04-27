@@ -1,0 +1,14 @@
+[package]
+name = "rlox_ast"
+version = "0.1.0"
+license = "MIT"
+description = "A shared library package for shared AST types."
+readme = "../README.md"
+repository = "https://github.com/ID-UNCLEAR/rlox"
+edition.workspace = true
+rust-version.workspace = true
+include = [
+    "src/**/*.rs"
+]
+
+[dependencies]
