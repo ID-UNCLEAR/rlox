@@ -4,7 +4,7 @@
 A lox compiler written in Rust based on the book found at [Crafting Interpreters](https://craftinginterpreters.com).
 
 # Progress:
-A [tree-walk interpreter](https://craftinginterpreters.com/a-tree-walk-interpreter.html).
+A [tree-walk interpreter, String literals](https://craftinginterpreters.com/scanning.html#string-literals).
 
 # TODO:
 More documentation and stuff :)

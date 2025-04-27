@@ -1,17 +1,25 @@
-use std::env;
 use std::env::Args;
-use std::fs::File;
-use std::io::{self, BufReader, prelude::*};
 use std::path::Path;
+use std::{env, fs};
 
-fn main() -> io::Result<()> {
+use rlox_scanner::scanner::Scanner;
+use rlox_scanner::token::Token;
+
+fn main() -> std::io::Result<()> {
     let path_string: String = get_path_argument();
     let path: &Path = Path::new(&path_string);
-    read_file(path)?;
+    let source: String = fs::read_to_string(path)?;
+    let scanner: Scanner = Scanner::new(source);
+    let tokens: Vec<Token> = scanner.scan_tokens();
+
+    for token in tokens {
+        println!("{:?}", token);
+    }
 
     Ok(())
 }
 
+// Should look something like this at some point..?
 // fn main() -> io::Result<()> {
 //     let src = std::fs::read_to_string("input.rlox")?;
 //     let tokens = scanner::tokenize(&src)?;
@@ -32,15 +40,4 @@ fn get_path_argument() -> String {
     }
 
     panic!("Required `--path` argument not provided!");
-}
-
-fn read_file(path: &Path) -> io::Result<()> {
-    let file: File = File::open(path)?;
-    let reader: BufReader<File> = BufReader::new(file);
-
-    for (index, line) in reader.lines().enumerate() {
-        println!("{}. `{}`", index + 1, line?);
-    }
-
-    Ok(())
 }
