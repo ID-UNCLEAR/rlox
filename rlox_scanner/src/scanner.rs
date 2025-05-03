@@ -89,6 +89,22 @@ impl Scanner {
                     while self.peek() != '\n' && !self.is_at_end() {
                         self.advance();
                     }
+                } else if self.match_next_char('*') {
+                    // Start of multi-line comment
+                    while !(self.peek() == '*' && self.peek_next() == '/') && !self.is_at_end() {
+                        if self.peek() == '\n' {
+                            self.line += 1;
+                        }
+                        self.advance();
+                    }
+
+                    // Consume the '*/' if found
+                    if !self.is_at_end() {
+                        self.advance(); // consume '*'
+                        self.advance(); // consume '/'
+                    } else {
+                        panic!("Unterminated multi-line comment at line {}", self.line);
+                    }
                 } else {
                     self.add_token(TokenType::Slash);
                 }
@@ -220,13 +236,13 @@ mod tests {
     #[test]
     fn scan_single_character_tokens() {
         // Arrange
-        let source: &str = "(){},.-+;/*";
+        let source: &str = "(){},.-+;*/";
 
         // Act
         let tokens: Vec<Token> = Scanner::new(source).scan_tokens();
 
         // Assert
-        let expected = vec![
+        let expected: Vec<TokenType> = vec![
             TokenType::LeftParen,
             TokenType::RightParen,
             TokenType::LeftBrace,
@@ -236,8 +252,8 @@ mod tests {
             TokenType::Minus,
             TokenType::Plus,
             TokenType::SemiColon,
-            TokenType::Slash,
             TokenType::Star,
+            TokenType::Slash,
             TokenType::Eof,
         ];
         let actual: Vec<TokenType> = tokens.iter().map(|t| t.token_type.clone()).collect();
@@ -280,6 +296,28 @@ mod tests {
 
         // Assert
         assert_eq!(tokens[0].token_type, TokenType::Eof);
+    }
+
+    #[test]
+    fn scan_multiline_comment() {
+        // Arrange
+        let source: &str = "/* This is \n a multiline comment */";
+
+        // Act
+        let tokens: Vec<Token> = Scanner::new(source).scan_tokens();
+
+        // Assert
+        assert_eq!(tokens[0].token_type, TokenType::Eof);
+    }
+
+    #[test]
+    #[should_panic(expected = "Unterminated multi-line comment")]
+    fn scan_unterminated_multiline_comment_panics() {
+        // Arrange
+        let source: &str = "/* This is \n an unterminated multiline comment";
+
+        // Act
+        Scanner::new(source).scan_tokens();
     }
 
     #[test]

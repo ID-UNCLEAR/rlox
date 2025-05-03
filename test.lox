@@ -1,11 +1,21 @@
-// this is a comment, and thus won't be seen as a lexeme!
-(( )){} // grouping stuff
-!*+-/=<> <= == // operators
-"My String!"
-1
-1.1
-class
-if
-nil
-_keyword
-var test = 1
+/*
+    Class: Calculator
+    Functions: add, notequal
+    Use: Complex math!
+*/
+class calculator
+{
+    _identifier = 10.1;
+
+    fun add(left, right)
+    {
+        return left + right;
+    }
+
+    fun notequal(left, right)
+    {
+        return left != right;
+    }
+}
+
+var test = 2 / (2 * 3); // Some very complex math
