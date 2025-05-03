@@ -1,4 +1,4 @@
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum TokenType {
     // Single character tokens
     LeftParen,
@@ -13,7 +13,7 @@ pub enum TokenType {
     Slash,
     Star,
 
-    // One/Two character tokens
+    // One/Two character tokens (operators)
     Bang,
     BangEqual,
     Equal,

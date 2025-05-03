@@ -9,6 +9,8 @@
       <sourceFolder url="file://$MODULE_DIR$/rlox_scanner/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/rlox_semantic/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/rlox_parser/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/rlox_scanner/tests" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

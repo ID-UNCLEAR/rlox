@@ -8,3 +8,4 @@ class
 if
 nil
 _keyword
+var test = 1

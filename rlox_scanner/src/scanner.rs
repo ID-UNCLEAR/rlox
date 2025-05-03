@@ -1,7 +1,8 @@
 use crate::keywords::keywords;
 use crate::token::{Literal, Token};
-use crate::token_type::TokenType;
+pub use crate::token_type::TokenType;
 
+#[derive(Debug)]
 pub struct Scanner {
     source: String,
     tokens: Vec<Token>,
@@ -165,7 +166,7 @@ impl Scanner {
         }
 
         if self.is_at_end() {
-            panic!("Unterminated string at line  {}", self.line);
+            panic!("Unterminated string at line {}", self.line);
         }
 
         // Get the closing "
@@ -201,6 +202,7 @@ impl Scanner {
         while self.peek().is_ascii_alphanumeric() {
             self.advance();
         }
+
         let text: &str = &self.source[self.start..self.current];
         let token_type: TokenType = keywords()
             .get(text)
@@ -208,5 +210,163 @@ impl Scanner {
             .unwrap_or(TokenType::Identifier);
 
         self.add_token(token_type);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn scan_single_character_tokens() {
+        // Arrange
+        let source: &str = "(){},.-+;/*";
+
+        // Act
+        let tokens: Vec<Token> = Scanner::new(source).scan_tokens();
+
+        // Assert
+        let expected = vec![
+            TokenType::LeftParen,
+            TokenType::RightParen,
+            TokenType::LeftBrace,
+            TokenType::RightBrace,
+            TokenType::Comma,
+            TokenType::Dot,
+            TokenType::Minus,
+            TokenType::Plus,
+            TokenType::SemiColon,
+            TokenType::Slash,
+            TokenType::Star,
+            TokenType::Eof,
+        ];
+        let actual: Vec<TokenType> = tokens.iter().map(|t| t.token_type.clone()).collect();
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn scan_operators() {
+        // Arrange
+        let source: &str = "! != = == > >= < <=";
+
+        // Act
+        let tokens: Vec<Token> = Scanner::new(source).scan_tokens();
+
+        // Assert
+        let expected: Vec<TokenType> = vec![
+            TokenType::Bang,
+            TokenType::BangEqual,
+            TokenType::Equal,
+            TokenType::EqualEqual,
+            TokenType::Greater,
+            TokenType::GreaterEqual,
+            TokenType::Less,
+            TokenType::LessEqual,
+            TokenType::Eof,
+        ];
+        let actual: Vec<TokenType> = tokens.iter().map(|t| t.token_type.clone()).collect();
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn scan_comment() {
+        // Arrange
+        let source: &str = "// This is a comment!";
+
+        // Act
+        let tokens: Vec<Token> = Scanner::new(source).scan_tokens();
+
+        // Assert
+        assert_eq!(tokens[0].token_type, TokenType::Eof);
+    }
+
+    #[test]
+    fn scan_string_literal() {
+        let source: &str = r#""hello""#;
+
+        // Act
+        let tokens: Vec<Token> = Scanner::new(source).scan_tokens();
+
+        // Assert
+        assert_eq!(tokens[0].token_type, TokenType::String);
+        assert_eq!(tokens[0].lexeme, r#""hello""#);
+        assert_eq!(
+            tokens[0].literal,
+            Some(Literal::String("hello".to_string()))
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "Unterminated string")]
+    fn scan_unterminated_string_literal_panics() {
+        // Arrange, Act
+        Scanner::new(r#""hello"#).scan_tokens();
+    }
+
+    #[test]
+    fn scan_number_literal() {
+        // Arrange
+        let source: &str = "123.45";
+
+        // Act
+        let tokens: Vec<Token> = Scanner::new(source).scan_tokens();
+
+        // Assert
+        assert_eq!(tokens[0].token_type, TokenType::Number);
+        assert_eq!(tokens[0].lexeme, "123.45");
+        assert_eq!(tokens[0].literal, Some(Literal::Number(123.45)));
+    }
+
+    #[test]
+    fn scan_keywords() {
+        // Arrange
+        let source: &str = "class MyClass";
+
+        // Act
+        let tokens: Vec<Token> = Scanner::new(source).scan_tokens();
+
+        // Assert
+        assert_eq!(tokens[0].token_type, TokenType::Class);
+        assert_eq!(tokens[0].lexeme, "class");
+        assert_eq!(tokens[0].literal, None);
+
+        assert_eq!(tokens[1].token_type, TokenType::Identifier);
+        assert_eq!(tokens[1].lexeme, "MyClass");
+        assert_eq!(tokens[1].literal, None);
+    }
+
+    #[test]
+    fn ignore_whitespace() {
+        // Arrange
+        let source: &str = " \t\n\r";
+
+        // Act
+        let tokens: Vec<Token> = Scanner::new(source).scan_tokens();
+
+        // Assert
+        assert_eq!(tokens[0].token_type, TokenType::Eof);
+    }
+
+    #[test]
+    fn scan_end_of_file() {
+        // Arrange
+        let source: &str = "";
+
+        // Act
+        let tokens: Vec<Token> = Scanner::new(source).scan_tokens();
+
+        // Assert
+        assert_eq!(tokens[0].token_type, TokenType::Eof);
+        assert_eq!(tokens[0].lexeme, "");
+        assert_eq!(tokens[0].literal, None);
+    }
+
+    #[test]
+    #[should_panic(expected = "Unexpected character")]
+    fn scan_invalid_character_panics() {
+        // Arrange, Act
+        Scanner::new("@").scan_tokens();
     }
 }
