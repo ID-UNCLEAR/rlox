@@ -1,7 +1,10 @@
 // this is a comment, and thus won't be seen as a lexeme!
-// (( )){} // grouping stuff
-// !*+-/=<> <= == // operators
+(( )){} // grouping stuff
+!*+-/=<> <= == // operators
 "My String!"
 1
 1.1
-10
+class
+if
+nil
+_keyword

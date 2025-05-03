@@ -1,3 +1,4 @@
+use crate::keywords::keywords;
 use crate::token::{Literal, Token};
 use crate::token_type::TokenType;
 
@@ -95,6 +96,7 @@ impl Scanner {
             '\n' => self.line += 1,
             '"' => self.string(),
             c if c.is_ascii_digit() => self.number(),
+            c if c.is_ascii_alphanumeric() || c == '_' => self.identifier(),
             _ => panic!("Unexpected character '{}' on line {}", c, self.line),
         }
     }
@@ -145,6 +147,14 @@ impl Scanner {
         self.source.chars().nth(self.current).unwrap()
     }
 
+    fn peek_next(&self) -> char {
+        if (self.current + 1) >= self.source.len() {
+            return '\0';
+        }
+
+        self.source.chars().nth(self.current + 1).unwrap()
+    }
+
     fn string(&mut self) {
         // Trying to find the end of the string
         while self.peek() != '"' && !self.is_at_end() {
@@ -180,17 +190,23 @@ impl Scanner {
             }
         }
 
+        // Get the value and parse it as a string.
         let text: &str = &self.source[self.start..self.current];
         let value: f64 = text.parse::<f64>().expect("Failed to parse number");
 
         self.add_token_literal(TokenType::Number, Some(Literal::Number(value)));
     }
 
-    fn peek_next(&self) -> char {
-        if (self.current + 1) >= self.source.len() {
-            return '\0'
+    fn identifier(&mut self) {
+        while self.peek().is_ascii_alphanumeric() {
+            self.advance();
         }
+        let text: &str = &self.source[self.start..self.current];
+        let token_type: TokenType = keywords()
+            .get(text)
+            .cloned()
+            .unwrap_or(TokenType::Identifier);
 
-        self.source.chars().nth(self.current + 1).unwrap()
+        self.add_token(token_type);
     }
 }

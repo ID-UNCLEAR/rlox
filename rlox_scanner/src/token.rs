@@ -6,7 +6,7 @@ pub enum Literal {
     String(String),
     Number(f64),
     Boolean(bool),
-    Nil
+    Nil,
 }
 
 #[derive(Debug)]
@@ -14,7 +14,7 @@ pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
     pub literal: Option<Literal>,
-    pub line: usize
+    pub line: usize,
 }
 
 impl fmt::Display for Token {
@@ -24,12 +24,12 @@ impl fmt::Display for Token {
             Some(Literal::Number(n)) => n.to_string(),
             Some(Literal::Boolean(b)) => format!("#{}", b),
             Some(Literal::Nil) => String::from("nil"),
-            None => String::from("None")
+            None => String::from("None"),
         };
 
         write!(
             f,
-            "Line {}. TokenType: `{:?}`, Lexeme: `{}`, Literal: `{}`",
+            "Line {}. TokenType: `{:?}`, Lexeme: '{}', Literal: {}",
             self.line, self.token_type, self.lexeme, literal_str
         )
     }
