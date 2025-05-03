@@ -1,13 +1,15 @@
-# rlox
+# RLOX
 [![CI: Build, Test and Format](https://github.com/ID-UNCLEAR/rlox/actions/workflows/ci.yml/badge.svg)](https://github.com/ID-UNCLEAR/rlox/actions/workflows/ci.yml)
 
 A lox compiler written in Rust based on the book found at [Crafting Interpreters](https://craftinginterpreters.com).
 
 # Progress:
-A [tree-walk interpreter](https://craftinginterpreters.com/a-tree-walk-interpreter.html).
+[Chapter 5. Representing Code](https://craftinginterpreters.com/representing-code.html).
 
-# TODO:
-More documentation and stuff :)
+# Todos:
+- Write Tests for Chapter 4, [docs](https://doc.rust-lang.org/book/ch11-00-testing.html).
+- Add multi-line comment support, see [challenge 4](https://craftinginterpreters.com/scanning.html#challenges).
+- More documentation and stuff... :)
 
 
 # Fun to Implement?
