@@ -2,14 +2,17 @@ name: 'CI: Build, Test and Format'
 
 on:
   push:
+    branches:
+      - $default-branch
   pull_request:
+    types: [ opened, reopened, synchronize ]
 
 env: 
   CARGO_TERM_COLOR: always
 
 jobs:
   build-and-test:
-    name: Build and Test rlox
+    name: Build and Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -28,7 +31,7 @@ jobs:
           cargo test --release --verbose
 
   format:
-    name: Format rlox
+    name: Format
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -37,3 +40,17 @@ jobs:
       - name: Check formatting
         run: |
           cargo fmt --all -- --check
+
+  sonarcloud:
+    name: SonarCloud Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
