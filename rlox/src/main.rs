@@ -13,7 +13,7 @@ fn main() -> std::io::Result<()> {
     let tokens: Vec<Token> = scanner.scan_tokens();
 
     for token in tokens {
-        println!("{:?}", token);
+        println!("{}", token);
     }
 
     Ok(())

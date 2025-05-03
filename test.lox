@@ -1,1 +1,4 @@
-var test = "Hello World!";
+// this is a comment, and thus won't be seen as a lexeme!
+// (( )){} // grouping stuff
+// !*+-/=<> <= == // operators
+"My String!"

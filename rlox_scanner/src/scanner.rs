@@ -95,6 +95,7 @@ impl Scanner {
             '\r' => {}
             '\t' => {}
             '\n' => self.line += 1,
+            '"' => self.string(),
             _ => panic!("Unknown character!"),
         }
     }
@@ -143,5 +144,26 @@ impl Scanner {
         }
 
         self.source.chars().nth(self.current).unwrap()
+    }
+
+    fn string(&mut self) {
+        // Trying to find the end of the string
+        while self.peek() != '"' && !self.is_at_end() {
+            if self.peek() == '\n' {
+                self.line += 1;
+            }
+            self.advance();
+        }
+
+        if self.is_at_end() {
+            panic!("Unterminated string at line  {}", self.line);
+        }
+
+        // Get the closing "
+        self.advance();
+
+        // Trim the surrounding quotes of the value
+        let value: String = self.source[self.start + 1..self.current - 1].to_string();
+        self.add_token_literal(TokenType::String, Some(Literal::String(value)));
     }
 }
