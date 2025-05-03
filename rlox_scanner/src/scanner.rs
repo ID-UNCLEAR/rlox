@@ -91,12 +91,11 @@ impl Scanner {
                     self.add_token(TokenType::Slash);
                 }
             }
-            ' ' => {}
-            '\r' => {}
-            '\t' => {}
+            ' ' | '\r' | '\t' => {} // Ignore whitespace
             '\n' => self.line += 1,
             '"' => self.string(),
-            _ => panic!("Unknown character!"),
+            c if c.is_ascii_digit() => self.number(),
+            _ => panic!("Unexpected character '{}' on line {}", c, self.line),
         }
     }
 
@@ -165,5 +164,33 @@ impl Scanner {
         // Trim the surrounding quotes of the value
         let value: String = self.source[self.start + 1..self.current - 1].to_string();
         self.add_token_literal(TokenType::String, Some(Literal::String(value)));
+    }
+
+    fn number(&mut self) {
+        while self.peek().is_ascii_digit() {
+            self.advance();
+        }
+
+        // Look for fractional part '.'
+        if self.peek() == '.' && self.peek_next().is_ascii_digit() {
+            self.advance();
+
+            while self.peek().is_ascii_digit() {
+                self.advance();
+            }
+        }
+
+        let text: &str = &self.source[self.start..self.current];
+        let value: f64 = text.parse::<f64>().expect("Failed to parse number");
+
+        self.add_token_literal(TokenType::Number, Some(Literal::Number(value)));
+    }
+
+    fn peek_next(&self) -> char {
+        if (self.current + 1) >= self.source.len() {
+            return '\0'
+        }
+
+        self.source.chars().nth(self.current + 1).unwrap()
     }
 }
