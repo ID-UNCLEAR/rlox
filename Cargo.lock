@@ -33,6 +33,7 @@ version = "0.1.0"
 name = "rlox_codegen"
 version = "0.1.0"
 dependencies = [
+ "common",
  "rlox_ast",
  "rlox_semantic",
 ]
