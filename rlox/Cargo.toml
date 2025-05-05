@@ -11,6 +11,7 @@ include = [
 ]
 
 [dependencies]
+common = { path = "../common", version = "0.1.0" }
 rlox_ast      = { path = "../rlox_ast",      version = "0.1.0" }
 rlox_scanner  = { path = "../rlox_scanner",  version = "0.1.0" }
 rlox_parser   = { path = "../rlox_parser",   version = "0.1.0" }

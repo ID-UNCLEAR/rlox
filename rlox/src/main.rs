@@ -2,8 +2,8 @@ use std::env::Args;
 use std::path::Path;
 use std::{env, fs};
 
+use common::token::Token;
 use rlox_scanner::scanner::Scanner;
-use rlox_scanner::token::Token;
 
 fn main() -> std::io::Result<()> {
     let path_string: String = get_path_argument();

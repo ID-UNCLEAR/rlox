@@ -1,4 +1,5 @@
-use rlox_scanner::scanner::{Scanner, TokenType};
+use common::token_type::TokenType;
+use rlox_scanner::scanner::Scanner;
 
 #[test]
 fn test_scanner_basic() {
