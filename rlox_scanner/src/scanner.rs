@@ -1,6 +1,6 @@
-use crate::keywords::keywords;
-use crate::token::{Literal, Token};
-pub use crate::token_type::TokenType;
+use common::keywords::keywords;
+use common::token::{Literal, Token};
+pub use common::token_type::TokenType;
 
 #[derive(Debug)]
 pub struct Scanner {

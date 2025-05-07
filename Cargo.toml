@@ -1,8 +1,10 @@
 [workspace]
 resolver = "3"
 members = [
+    "common",
     "rlox",
     "rlox_ast",
+    "rlox_ast_generator",
     "rlox_codegen",
     "rlox_parser",
     "rlox_scanner",
