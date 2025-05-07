@@ -2,26 +2,12 @@ name: 'CD: Release'
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
-    # TODO: REMOVE ONCE PROPERLY CONFIGURED
+    tags:
+      - 'v*'
 
 jobs:
   release:
-    name: Release - ${{ matrix.platform.os-name }}
-    strategy:
-      matrix:
-        platform:
-          - os-name: Linux-x86_64
-            target: x84_64-unknown-linux-gnu
-
-          - os-name: Linux-aarch64
-            target: aarch64-unknown-linux-musl
-
-          - os-name: Windows-x86_64
-            target: x86_64-pc-windows-gnu
-
+    name: Release
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -30,11 +16,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build
-        run: |
-          cargo build --target ${{ matrix.platform.target }} --release --verbose
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
 
-      - name: Test
-        run: |
-          cargo test --target ${{ matrix.platform.target }} --release --verbose
-          
+      - name: Display files
+        run: ls -R artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*.zip,artifacts/**/*.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
