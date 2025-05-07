@@ -41,7 +41,7 @@ jobs:
           cross clippy --target ${{ matrix.target }} --release
 
       - name: Test
-        if: endsWith(matrix.target, linux-gnu)
+        if: endsWith(matrix.target, 'linux-gnu')
         run: |
           cross test --target ${{ matrix.target }} --release
 
