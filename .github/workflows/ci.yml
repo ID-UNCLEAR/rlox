@@ -32,6 +32,9 @@ jobs:
         run: |
           cargo binstall cross
 
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
       - name: Build
         run: |
           cross build --target ${{ matrix.target }} --release
@@ -44,6 +47,17 @@ jobs:
         if: endsWith(matrix.target, 'linux-gnu')
         run: |
           cross test --target ${{ matrix.target }} --release
+
+      - name: Generate code coverage
+        run: |
+          cargo llvm-cov --all-features --workspace --codecov --output-path codecov.json
+
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: codecov.json
+          fail_ci_if_error: true
 
       - name: Rename and move binary
         run: |
