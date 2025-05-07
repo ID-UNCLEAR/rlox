@@ -11,9 +11,9 @@ env:
 jobs:
   build-and-test:
     name: Build and Test - ${{ matrix.target }}
-    continue-on-error: true
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         target:
           - x86_64-unknown-linux-gnu
@@ -39,16 +39,12 @@ jobs:
         run: |
           cross test --target ${{ matrix.target }} --release
 
-      - name: Rename, zip, and checksum binary
+      - name: Rename and move binary
         run: |
           mkdir -p dist
           EXT=""
           [[ "${{ matrix.target }}" == *windows* ]] && EXT=".exe"
-          BINARY="rlox-${{ matrix.target }}$EXT"
-          cp target/${{ matrix.target }}/release/rlox$EXT "dist/$BINARY"
-          cd dist
-          zip "$BINARY.zip" "$BINARY"
-          sha256sum "$BINARY" > "$BINARY.sha256"
+          cp target/${{ matrix.target }}/release/rlox$EXT dist/rlox-${{ matrix.target }}$EXT
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
