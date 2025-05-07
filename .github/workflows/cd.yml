@@ -1,0 +1,40 @@
+name: 'CD: Release'
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    # TODO: REMOVE ONCE PROPERLY CONFIGURED
+
+jobs:
+  release:
+    name: Release - ${{ matrix.platform.os-name }}
+    strategy:
+      matrix:
+        platform:
+          - os-name: Linux-x86_64
+            target: x84_64-unknown-linux-gnu
+
+          - os-name: Linux-aarch64
+            target: aarch64-unknown-linux-musl
+
+          - os-name: Windows-x86_64
+            target: x86_64-pc-windows-gnu
+
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build
+        run: |
+          cargo build --target ${{ matrix.platform.target }} --release --verbose
+
+      - name: Test
+        run: |
+          cargo test --target ${{ matrix.platform.target }} --release --verbose
+          
