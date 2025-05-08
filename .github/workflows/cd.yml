@@ -30,9 +30,13 @@ jobs:
           - x86_64-pc-windows-gnu
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Build and upload (release) binary to new GitHub Release
       - uses: taiki-e/upload-rust-binary-action@v1
         with:
           bin: rlox
+          zip: all
           target: ${{ matrix.target }}
           token: ${{ secrets.GITHUB_TOKEN }}
