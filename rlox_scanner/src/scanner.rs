@@ -91,7 +91,7 @@ impl Scanner {
                     }
                 } else if self.match_next_char('*') {
                     // Start of multi-line comment
-                    while !(self.peek() == '*' && self.peek_next() == '/') && !self.is_at_end() {
+                    while !(self.is_at_end() || self.peek() == '*' && self.peek_next() == '/') {
                         if self.peek() == '\n' {
                             self.line += 1;
                         }

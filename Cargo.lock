@@ -42,6 +42,7 @@ dependencies = [
 name = "rlox_parser"
 version = "0.1.0"
 dependencies = [
+ "common",
  "rlox_ast",
  "rlox_scanner",
 ]

@@ -8,6 +8,8 @@ A lox compiler written in Rust based on the book found at [Crafting Interpreters
 [Chapter 6. Parsing Expressions](https://craftinginterpreters.com/parsing-expressions.html).
 
 # Todos:
+- Pretty AST printer
+- Parser tests
 - More documentation and stuff... :)
 
 # Fun to Implement?

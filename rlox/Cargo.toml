@@ -9,6 +9,7 @@ rust-version.workspace = true
 include = [
     "src/**/*.rs"
 ]
+default-run = "rlox"
 
 [dependencies]
 common = { path = "../common", version = "0.1.0" }

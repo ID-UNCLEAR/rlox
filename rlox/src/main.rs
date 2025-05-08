@@ -1,19 +1,28 @@
+use common::token::Token;
+use rlox_parser::parser::Parser;
+use rlox_scanner::scanner::Scanner;
 use std::env::Args;
+use std::error::Error;
 use std::path::Path;
 use std::{env, fs};
 
-use common::token::Token;
-use rlox_scanner::scanner::Scanner;
-
-fn main() -> std::io::Result<()> {
+fn main() -> Result<(), Box<dyn Error>> {
     let path_string: String = get_path_argument();
     let path: &Path = Path::new(&path_string);
     let source: String = fs::read_to_string(path)?;
+
     let scanner: Scanner = Scanner::new(source);
     let tokens: Vec<Token> = scanner.scan_tokens();
 
-    for token in tokens {
-        println!("{}", token);
+    let mut parser: Parser = Parser::new(tokens);
+    match parser.parse() {
+        Some(expr) => {
+            // Use expr here
+            println!("{:?}", expr);
+        }
+        None => {
+            eprintln!("Failed to parse expression.");
+        }
     }
 
     Ok(())
