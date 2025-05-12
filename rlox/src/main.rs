@@ -4,12 +4,12 @@ mod common;
 mod parser;
 mod scanner;
 mod semantics;
-
 mod tests;
 
-use common::token::Token;
-use parser::Parser;
-use scanner::Scanner;
+use crate::codegen::interpreter;
+use crate::common::{Literal, Token};
+use crate::parser::Parser;
+use crate::scanner::Scanner;
 use std::env::Args;
 use std::error::Error;
 use std::path::Path;
@@ -28,6 +28,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         Some(expr) => {
             // Use expr here
             println!("{:?}", expr);
+
+            let result: Literal = interpreter::evaluate(&expr);
+            println!("{:?}", result);
         }
         None => {
             eprintln!("Failed to parse expression.");
