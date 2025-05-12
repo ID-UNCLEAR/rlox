@@ -1,0 +1,3 @@
+mod codegen_integration_tests;
+mod parser_integration_tests;
+mod scanner_integration_tests;

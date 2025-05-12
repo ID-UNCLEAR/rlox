@@ -1,6 +1,6 @@
-use common::token::Literal;
-use common::token_type::TokenType;
-use rlox_ast::expr::Expr;
+use crate::ast::Expr;
+use crate::common::Literal;
+use crate::common::TokenType;
 
 pub fn evaluate(expr: &Expr) -> Literal {
     match expr {
@@ -48,7 +48,7 @@ pub fn evaluate(expr: &Expr) -> Literal {
                 TokenType::Star => num_bin_op(left_val, right_val, |x, y| x * y),
                 TokenType::Slash => num_bin_op(left_val, right_val, |x, y| x / y),
 
-                // Binary comparison TODO: Implement greater than or equal to and stuff
+                // Binary comparison
                 TokenType::Greater => bool_bin_op(left_val, right_val, |x, y| x > y),
                 TokenType::GreaterEqual => bool_bin_op(left_val, right_val, |x, y| x >= y),
                 TokenType::Less => bool_bin_op(left_val, right_val, |x, y| x < y),
@@ -98,7 +98,7 @@ fn is_truthy(literal: &Literal) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::token::Token;
+    use crate::common::Token;
 
     fn dummy_token(token_type: TokenType) -> Token {
         Token {

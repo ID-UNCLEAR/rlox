@@ -1,4 +1,4 @@
-use crate::token_type::TokenType;
+use crate::common::TokenType;
 use std::fmt;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -9,7 +9,7 @@ pub enum Literal {
     Nil,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,

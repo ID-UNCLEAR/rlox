@@ -5,15 +5,15 @@
       <sourceFolder url="file://$MODULE_DIR$/rlox/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/rlox_ast/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/rlox_codegen/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/rlox_parser/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/rlox_scanner/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/rlox_semantic/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/rlox_parser/tests" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/rlox_scanner/tests" isTestSource="true" />
-      <sourceFolder url="file://$MODULE_DIR$/common/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/rlox_ast_generator/src" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/rlox_codegen/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/rlox/src/codegen/tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/rlox/src/common/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/rlox/src/parser/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/rlox/src/scanner/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/rlox/src/scanner/tests" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />
