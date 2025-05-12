@@ -238,3 +238,367 @@ impl Parser {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::common::{Literal, Token, TokenType};
+
+    fn token(token_type: TokenType, lexeme: &str, literal: Option<Literal>) -> Token {
+        Token {
+            token_type,
+            lexeme: lexeme.to_string(),
+            literal,
+            line: 1,
+        }
+    }
+
+    #[test]
+    fn whenerror_parsereturnsnone() {
+        // Arrange
+        let tokens: Vec<Token> = vec![
+            token(TokenType::Plus, "+", None),
+            token(TokenType::Eof, "", None),
+        ];
+        let mut parser: Parser = Parser::new(tokens);
+
+        // Act
+        let result: Option<Expr> = parser.parse();
+
+        // Assert
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn parse_equality_expression() {
+        // Arrange
+        let tokens: Vec<Token> = vec![
+            token(TokenType::Number, "1", Some(Literal::Number(1.0))),
+            token(TokenType::EqualEqual, "==", None),
+            token(TokenType::Number, "2", Some(Literal::Number(2.0))),
+            token(TokenType::Eof, "", None),
+        ];
+        let mut parser: Parser = Parser::new(tokens);
+
+        // Act
+        let result: Expr = parser.parse().unwrap();
+
+        // Assert
+        let expected: Expr = Expr::Binary {
+            left: Box::new(Expr::Literal {
+                value: Literal::Number(1.0),
+            }),
+            operator: token(TokenType::EqualEqual, "==", None),
+            right: Box::new(Expr::Literal {
+                value: Literal::Number(2.0),
+            }),
+        };
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn parse_comparison_expression() {
+        // Arrange
+        let tokens: Vec<Token> = vec![
+            token(TokenType::Number, "3", Some(Literal::Number(3.0))),
+            token(TokenType::Less, "<", None),
+            token(TokenType::Number, "4", Some(Literal::Number(4.0))),
+            token(TokenType::Eof, "", None),
+        ];
+        let mut parser: Parser = Parser::new(tokens);
+
+        // Act
+        let result: Expr = parser.parse().unwrap();
+
+        // Assert
+        let expected: Expr = Expr::Binary {
+            left: Box::new(Expr::Literal {
+                value: Literal::Number(3.0),
+            }),
+            operator: token(TokenType::Less, "<", None),
+            right: Box::new(Expr::Literal {
+                value: Literal::Number(4.0),
+            }),
+        };
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn parse_term_expression() {
+        // Arrange
+        let tokens: Vec<Token> = vec![
+            token(TokenType::Number, "5", Some(Literal::Number(5.0))),
+            token(TokenType::Plus, "+", None),
+            token(TokenType::Number, "6", Some(Literal::Number(6.0))),
+            token(TokenType::Eof, "", None),
+        ];
+        let mut parser: Parser = Parser::new(tokens);
+
+        // Act
+        let result: Expr = parser.parse().unwrap();
+
+        // Assert
+        let expected: Expr = Expr::Binary {
+            left: Box::new(Expr::Literal {
+                value: Literal::Number(5.0),
+            }),
+            operator: token(TokenType::Plus, "+", None),
+            right: Box::new(Expr::Literal {
+                value: Literal::Number(6.0),
+            }),
+        };
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn parse_factor_expression() {
+        // Arrange
+        let tokens: Vec<Token> = vec![
+            token(TokenType::Number, "7", Some(Literal::Number(7.0))),
+            token(TokenType::Star, "*", None),
+            token(TokenType::Number, "8", Some(Literal::Number(8.0))),
+            token(TokenType::Eof, "", None),
+        ];
+        let mut parser: Parser = Parser::new(tokens);
+
+        // Act
+        let result: Expr = parser.parse().unwrap();
+
+        // Assert
+        let expected = Expr::Binary {
+            left: Box::new(Expr::Literal {
+                value: Literal::Number(7.0),
+            }),
+            operator: token(TokenType::Star, "*", None),
+            right: Box::new(Expr::Literal {
+                value: Literal::Number(8.0),
+            }),
+        };
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn parse_bang_unary_expression() {
+        // Arrange
+        let tokens: Vec<Token> = vec![
+            token(TokenType::Bang, "!", None),
+            token(TokenType::True, "true", Some(Literal::Boolean(true))),
+            token(TokenType::Eof, "", None),
+        ];
+        let mut parser: Parser = Parser::new(tokens);
+
+        // Act
+        let result: Expr = parser.parse().unwrap();
+
+        // Assert
+        let expected = Expr::Unary {
+            operator: token(TokenType::Bang, "!", None),
+            right: Box::new(Expr::Literal {
+                value: Literal::Boolean(true),
+            }),
+        };
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn parse_minus_unary_expression() {
+        // Arrange
+        let tokens: Vec<Token> = vec![
+            token(TokenType::Minus, "-", None),
+            token(TokenType::Number, "3", Some(Literal::Number(3.0))),
+            token(TokenType::Eof, "", None),
+        ];
+        let mut parser: Parser = Parser::new(tokens);
+
+        // Act
+        let result: Expr = parser.parse().unwrap();
+
+        // Assert
+        let expected = Expr::Unary {
+            operator: token(TokenType::Minus, "-", None),
+            right: Box::new(Expr::Literal {
+                value: Literal::Number(3.0),
+            }),
+        };
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn parse_primary_no_expression() {
+        // Arrange
+        let tokens: Vec<Token> = vec![
+            token(TokenType::LeftParen, "(", None),
+            token(TokenType::Number, "42", Some(Literal::Number(42.0))),
+            token(TokenType::Eof, "", None),
+        ];
+        let mut parser: Parser = Parser::new(tokens);
+
+        // Act
+        let result: Option<Expr> = parser.parse();
+
+        // Assert
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn parse_primary_true_literal_expression() {
+        // Arrange
+        let tokens: Vec<Token> = vec![
+            token(TokenType::True, "true", Some(Literal::Boolean(true))),
+            token(TokenType::Eof, "", None),
+        ];
+        let mut parser: Parser = Parser::new(tokens);
+
+        // Act
+        let result: Expr = parser.parse().unwrap();
+
+        // Assert
+        let expected = Expr::Literal {
+            value: Literal::Boolean(true),
+        };
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn parse_primary_false_literal_expression() {
+        // Arrange
+        let tokens: Vec<Token> = vec![
+            token(TokenType::False, "false", Some(Literal::Boolean(false))),
+            token(TokenType::Eof, "", None),
+        ];
+        let mut parser: Parser = Parser::new(tokens);
+
+        // Act
+        let result: Expr = parser.parse().unwrap();
+
+        // Assert
+        let expected = Expr::Literal {
+            value: Literal::Boolean(false),
+        };
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn parse_primary_nil_literal_expression() {
+        // Arrange
+        let tokens: Vec<Token> = vec![
+            token(TokenType::Nil, "nil", Some(Literal::Nil)),
+            token(TokenType::Eof, "", None),
+        ];
+        let mut parser: Parser = Parser::new(tokens);
+
+        // Act
+        let result: Expr = parser.parse().unwrap();
+
+        // Assert
+        let expected = Expr::Literal {
+            value: Literal::Nil,
+        };
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn parse_primary_string_literal_expression() {
+        // Arrange
+        let tokens: Vec<Token> = vec![
+            token(
+                TokenType::String,
+                "test",
+                Some(Literal::String("test".to_string())),
+            ),
+            token(TokenType::Eof, "", None),
+        ];
+        let mut parser: Parser = Parser::new(tokens);
+
+        // Act
+        let result: Expr = parser.parse().unwrap();
+
+        // Assert
+        let expected = Expr::Literal {
+            value: Literal::String("test".to_string()),
+        };
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn parse_primary_number_literal_expression() {
+        // Arrange
+        let tokens: Vec<Token> = vec![
+            token(TokenType::Number, "123", Some(Literal::Number(123.0))),
+            token(TokenType::Eof, "", None),
+        ];
+        let mut parser: Parser = Parser::new(tokens);
+
+        // Act
+        let result: Expr = parser.parse().unwrap();
+
+        // Assert
+        let expected = Expr::Literal {
+            value: Literal::Number(123.0),
+        };
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn parse_primary_grouping_expression() {
+        // Arrange
+        let tokens: Vec<Token> = vec![
+            token(TokenType::LeftParen, "(", None),
+            token(TokenType::Number, "1", Some(Literal::Number(1.0))),
+            token(TokenType::RightParen, ")", None),
+            token(TokenType::Eof, "", None),
+        ];
+        let mut parser: Parser = Parser::new(tokens);
+
+        // Act
+        let result: Expr = parser.parse().unwrap();
+
+        // Assert
+        let expected = Expr::Grouping {
+            expression: Box::new(Expr::Literal {
+                value: Literal::Number(1.0),
+            }),
+        };
+
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn parse_primary_nested_grouping_expression() {
+        // Arrange
+        let tokens: Vec<Token> = vec![
+            token(TokenType::LeftParen, "(", None),
+            token(TokenType::LeftParen, "(", None),
+            token(TokenType::Number, "1", Some(Literal::Number(1.0))),
+            token(TokenType::RightParen, ")", None),
+            token(TokenType::RightParen, ")", None),
+            token(TokenType::Eof, "", None),
+        ];
+        let mut parser: Parser = Parser::new(tokens);
+
+        // Act
+        let result: Expr = parser.parse().unwrap();
+
+        // Assert
+        let expected = Expr::Grouping {
+            expression: Box::new(Expr::Grouping {
+                expression: Box::new(Expr::Literal {
+                    value: Literal::Number(1.0),
+                }),
+            }),
+        };
+
+        assert_eq!(result, expected);
+    }
+}
