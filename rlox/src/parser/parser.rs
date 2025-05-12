@@ -1,6 +1,5 @@
-use common::token::{Literal, Token};
-use common::token_type::TokenType;
-use rlox_ast::expr::Expr;
+use crate::ast::Expr;
+use crate::common::{Literal, Token, TokenType};
 use std::fmt;
 
 #[derive(Debug)]

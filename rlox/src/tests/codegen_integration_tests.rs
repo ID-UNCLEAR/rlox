@@ -1,7 +1,6 @@
-use common::token::{Literal, Token};
-use common::token_type::TokenType;
-use rlox_ast::expr::Expr;
-use rlox_codegen::interpreter::evaluate;
+use crate::ast::Expr;
+use crate::codegen::interpreter;
+use crate::common::{Literal, Token, TokenType};
 
 #[test]
 fn test_literal() {
@@ -23,7 +22,7 @@ fn test_literal() {
     };
 
     // Act
-    let result: Literal = evaluate(&expr);
+    let result: Literal = interpreter::evaluate(&expr);
 
     // Assert
     assert_eq!(result, expected);

@@ -10,6 +10,7 @@ A lox compiler written in Rust based on the book found at [Crafting Interpreters
 # Todos:
 - Pretty AST printer
 - Parser tests
+- Interactive console if no lox file is provided
 - More documentation and stuff... :)
 
 # Fun to Implement?

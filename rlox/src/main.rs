@@ -1,6 +1,15 @@
+mod ast;
+mod codegen;
+mod common;
+mod parser;
+mod scanner;
+mod semantics;
+
+mod tests;
+
 use common::token::Token;
-use rlox_parser::parser::Parser;
-use rlox_scanner::scanner::Scanner;
+use parser::Parser;
+use scanner::Scanner;
 use std::env::Args;
 use std::error::Error;
 use std::path::Path;

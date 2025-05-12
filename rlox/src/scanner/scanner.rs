@@ -1,6 +1,5 @@
-use common::keywords::keywords;
-use common::token::{Literal, Token};
-pub use common::token_type::TokenType;
+use crate::common::keywords::keywords;
+use crate::common::{Literal, Token, TokenType};
 
 #[derive(Debug)]
 pub struct Scanner {

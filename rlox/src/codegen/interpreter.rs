@@ -1,6 +1,6 @@
-use common::token::Literal;
-use common::token_type::TokenType;
-use rlox_ast::expr::Expr;
+use crate::ast::Expr;
+use crate::common::Literal;
+use crate::common::TokenType;
 
 pub fn evaluate(expr: &Expr) -> Literal {
     match expr {
@@ -98,7 +98,7 @@ fn is_truthy(literal: &Literal) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::token::Token;
+    use crate::common::Token;
 
     fn dummy_token(token_type: TokenType) -> Token {
         Token {
