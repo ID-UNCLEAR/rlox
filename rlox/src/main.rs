@@ -6,8 +6,10 @@ mod scanner;
 mod semantics;
 mod tests;
 
+use crate::ast::Expr;
 use crate::codegen::interpreter;
-use crate::common::{Literal, Token};
+use crate::codegen::interpreter::Value;
+use crate::common::Token;
 use crate::parser::Parser;
 use crate::scanner::Scanner;
 use std::env::Args;
@@ -26,15 +28,19 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut parser: Parser = Parser::new(tokens);
     match parser.parse() {
         Some(expr) => {
-            // Use expr here
-            println!("{:?}", expr);
-
-            let result: Literal = interpreter::evaluate(&expr);
-            println!("{:?}", result);
+            let result: Value = interpreter::evaluate(&expr);
+            println!("{}", result);
         }
         None => {
             eprintln!("Failed to parse expression.");
         }
+    }
+
+    let expressions: Vec<Expr> = parser.parse_all();
+
+    for expr in expressions {
+        let value = interpreter::evaluate(&expr);
+        println!("{}", value);
     }
 
     Ok(())

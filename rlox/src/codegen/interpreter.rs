@@ -1,60 +1,74 @@
 use crate::ast::Expr;
 use crate::common::Literal;
 use crate::common::TokenType;
+use std::fmt;
 
-pub fn evaluate(expr: &Expr) -> Literal {
+#[derive(Clone, Debug, PartialEq)]
+pub enum Value {
+    Number(f64),
+    String(String),
+    Boolean(bool),
+    Nil,
+}
+
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Value::Number(n) => write!(f, "{}", n),
+            Value::String(s) => write!(f, "{}", s),
+            Value::Boolean(b) => write!(f, "{}", b),
+            Value::Nil => write!(f, "nil"),
+        }
+    }
+}
+
+pub fn evaluate(expr: &Expr) -> Value {
     match expr {
-        // If the expression is a literal, return its value
-        Expr::Literal { value } => (*value).clone(),
+        Expr::Literal { value } => match value {
+            Literal::Number(n) => Value::Number(*n),
+            Literal::String(s) => Value::String(s.clone()),
+            Literal::Boolean(b) => Value::Boolean(*b),
+            Literal::Nil => Value::Nil,
+        },
 
-        // If the expression is a group (), evaluate the inner expression
         Expr::Grouping { expression } => evaluate(expression),
 
-        // Unary expressions, for example: -x or !x
         Expr::Unary { operator, right } => {
-            let right_val: Literal = evaluate(right);
+            let right_val = evaluate(right);
             match operator.token_type {
-                // Negation, x = 5, -x means x = -5
                 TokenType::Minus => match right_val {
-                    Literal::Number(n) => Literal::Number(-n),
+                    Value::Number(n) => Value::Number(-n),
                     _ => panic!("Operator token type mismatch"),
                 },
-                // Logical NOT: x = true, !x => false
-                TokenType::Bang => Literal::Boolean(!is_truthy(&right_val)),
+                TokenType::Bang => Value::Boolean(!is_truthy(&right_val)),
                 _ => panic!("Unknown unary operator"),
             }
         }
 
-        // Binary expressions, for example: x + y or x > y
         Expr::Binary {
             left,
             operator,
             right,
         } => {
-            let left_val: Literal = evaluate(left);
-            let right_val: Literal = evaluate(right);
+            let left_val = evaluate(left);
+            let right_val = evaluate(right);
 
             match operator.token_type {
                 TokenType::Plus => match (left_val, right_val) {
-                    (Literal::Number(x), Literal::Number(y)) => Literal::Number(x + y),
-                    (Literal::String(x), Literal::String(y)) => {
-                        Literal::String(format!("{}{}", x, y))
-                    }
+                    (Value::Number(x), Value::Number(y)) => Value::Number(x + y),
+                    (Value::String(x), Value::String(y)) => Value::String(format!("{}{}", x, y)),
                     _ => panic!("Operands must be two numbers or strings"),
                 },
-
-                // Binary arithmetic
                 TokenType::Minus => num_bin_op(left_val, right_val, |x, y| x - y),
                 TokenType::Star => num_bin_op(left_val, right_val, |x, y| x * y),
                 TokenType::Slash => num_bin_op(left_val, right_val, |x, y| x / y),
 
-                // Binary comparison
                 TokenType::Greater => bool_bin_op(left_val, right_val, |x, y| x > y),
                 TokenType::GreaterEqual => bool_bin_op(left_val, right_val, |x, y| x >= y),
                 TokenType::Less => bool_bin_op(left_val, right_val, |x, y| x < y),
                 TokenType::LessEqual => bool_bin_op(left_val, right_val, |x, y| x <= y),
-                TokenType::EqualEqual => bool_bin_op(left_val, right_val, |x, y| x == y),
-                TokenType::BangEqual => bool_bin_op(left_val, right_val, |x, y| x != y),
+                TokenType::EqualEqual => Value::Boolean(left_val == right_val),
+                TokenType::BangEqual => Value::Boolean(left_val != right_val),
 
                 _ => panic!("Unknown binary operator"),
             }
@@ -62,35 +76,32 @@ pub fn evaluate(expr: &Expr) -> Literal {
     }
 }
 
-// Generic function that takes a closure and performs the corresponding binary operation, retuning a number/integer
-fn num_bin_op<F>(x: Literal, y: Literal, op: F) -> Literal
+fn num_bin_op<F>(x: Value, y: Value, op: F) -> Value
 where
     F: Fn(f64, f64) -> f64,
 {
-    if let (Literal::Number(x), Literal::Number(y)) = (x, y) {
-        Literal::Number(op(x, y))
+    if let (Value::Number(x), Value::Number(y)) = (x, y) {
+        Value::Number(op(x, y))
     } else {
         panic!("Operands must be numbers/integers");
     }
 }
 
-// Generic function that takes a closure and performs the corresponding binary operation, returning a bool
-fn bool_bin_op<F>(x: Literal, y: Literal, op: F) -> Literal
+fn bool_bin_op<F>(x: Value, y: Value, op: F) -> Value
 where
     F: Fn(f64, f64) -> bool,
 {
-    if let (Literal::Number(x), Literal::Number(y)) = (x, y) {
-        Literal::Boolean(op(x, y))
+    if let (Value::Number(x), Value::Number(y)) = (x, y) {
+        Value::Boolean(op(x, y))
     } else {
         panic!("Operands must be numbers/integers");
     }
 }
 
-// Determines whether a given literal value is truthy.
-fn is_truthy(literal: &Literal) -> bool {
-    match literal {
-        Literal::Nil => false,
-        Literal::Boolean(b) => *b,
+fn is_truthy(val: &Value) -> bool {
+    match val {
+        Value::Nil => false,
+        Value::Boolean(b) => *b,
         _ => true,
     }
 }
@@ -98,7 +109,7 @@ fn is_truthy(literal: &Literal) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::common::Token;
+    use crate::common::{Literal, Token, TokenType};
 
     fn dummy_token(token_type: TokenType) -> Token {
         Token {
@@ -124,35 +135,37 @@ mod tests {
     #[test]
     fn literal_evaluation() {
         // Arrange
-        const VALUE: Literal = Literal::Number(42.0);
-        let expr: Expr = Expr::Literal { value: VALUE };
+        let expr = Expr::Literal {
+            value: Literal::Number(42.0),
+        };
 
         // Act
-        let result: Literal = evaluate(&expr);
+        let result = evaluate(&expr);
 
         // Assert
-        assert_eq!(result, VALUE);
+        assert_eq!(result, Value::Number(42.0));
     }
 
     #[test]
     fn grouping_evaluation() {
         // Arrange
-        const VALUE: Literal = Literal::Boolean(true);
-        let expr: Expr = Expr::Grouping {
-            expression: Box::new(Expr::Literal { value: VALUE }),
+        let expr = Expr::Grouping {
+            expression: Box::new(Expr::Literal {
+                value: Literal::Boolean(true),
+            }),
         };
 
         // Act
-        let result: Literal = evaluate(&expr);
+        let result = evaluate(&expr);
 
         // Assert
-        assert_eq!(result, VALUE);
+        assert_eq!(result, Value::Boolean(true));
     }
 
     #[test]
     fn unary_negation() {
         // Arrange
-        let expr: Expr = Expr::Unary {
+        let expr = Expr::Unary {
             operator: dummy_token(TokenType::Minus),
             right: Box::new(Expr::Literal {
                 value: Literal::Number(5.0),
@@ -160,17 +173,16 @@ mod tests {
         };
 
         // Act
-        let result: Literal = evaluate(&expr);
+        let result = evaluate(&expr);
 
         // Assert
-        assert_eq!(result, Literal::Number(-5.0));
+        assert_eq!(result, Value::Number(-5.0));
     }
 
-    // Examples: x = true, !x => false
     #[test]
     fn unary_not() {
         // Arrange
-        let expr: Expr = Expr::Unary {
+        let expr = Expr::Unary {
             operator: dummy_token(TokenType::Bang),
             right: Box::new(Expr::Literal {
                 value: Literal::Boolean(true),
@@ -178,17 +190,16 @@ mod tests {
         };
 
         // Act
-        let result: Literal = evaluate(&expr);
+        let result = evaluate(&expr);
 
         // Assert
-        assert_eq!(result, Literal::Boolean(false));
+        assert_eq!(result, Value::Boolean(false));
     }
 
     #[test]
     fn unary_not_nil() {
         // Arrange
-        let expected: Literal = Literal::Boolean(true);
-        let expr: Expr = Expr::Unary {
+        let expr = Expr::Unary {
             operator: dummy_token(TokenType::Bang),
             right: Box::new(Expr::Literal {
                 value: Literal::Nil,
@@ -196,53 +207,51 @@ mod tests {
         };
 
         // Act
-        let result: Literal = evaluate(&expr);
+        let result = evaluate(&expr);
 
         // Assert
-        assert_eq!(result, expected);
+        assert_eq!(result, Value::Boolean(true));
     }
 
     #[test]
     fn binary_addition_numbers() {
         // Arrange
-        let expected: Literal = Literal::Number(5.0);
-        let expr: Expr = new_binary_expression(2.0, TokenType::Plus, 3.0);
+        let expr = new_binary_expression(2.0, TokenType::Plus, 3.0);
 
         // Act
-        let result: Literal = evaluate(&expr);
+        let result = evaluate(&expr);
 
         // Assert
-        assert_eq!(result, expected);
+        assert_eq!(result, Value::Number(5.0));
     }
 
     #[test]
     fn binary_addition_strings() {
         // Arrange
-        let expected: Literal = Literal::String(String::from("Hello, world!"));
-        let expr: Expr = Expr::Binary {
+        let expr = Expr::Binary {
             left: Box::new(Expr::Literal {
-                value: Literal::String(String::from("Hello,")),
+                value: Literal::String("Hello,".into()),
             }),
             operator: dummy_token(TokenType::Plus),
             right: Box::new(Expr::Literal {
-                value: Literal::String(String::from(" world!")),
+                value: Literal::String(" world!".into()),
             }),
         };
 
         // Act
-        let result: Literal = evaluate(&expr);
+        let result = evaluate(&expr);
 
         // Assert
-        assert_eq!(result, expected);
+        assert_eq!(result, Value::String("Hello, world!".into()));
     }
 
     #[test]
     #[should_panic(expected = "Operands must be two numbers or strings")]
     fn binary_addition_mixed_types() {
         // Arrange
-        let expr: Expr = Expr::Binary {
+        let expr = Expr::Binary {
             left: Box::new(Expr::Literal {
-                value: Literal::String(String::from("Hello")),
+                value: Literal::String("Hello".into()),
             }),
             operator: dummy_token(TokenType::Plus),
             right: Box::new(Expr::Literal {
@@ -250,28 +259,27 @@ mod tests {
             }),
         };
 
-        // Act, Assert
+        // Act & Assert
         evaluate(&expr);
     }
 
     #[test]
     fn binary_subtraction_numbers() {
         // Arrange
-        let expected: Literal = Literal::Number(1.0);
-        let expr: Expr = new_binary_expression(3.0, TokenType::Minus, 2.0);
+        let expr = new_binary_expression(3.0, TokenType::Minus, 2.0);
 
         // Act
-        let result: Literal = evaluate(&expr);
+        let result = evaluate(&expr);
 
         // Assert
-        assert_eq!(result, expected);
+        assert_eq!(result, Value::Number(1.0));
     }
 
     #[test]
     #[should_panic(expected = "Operands must be numbers/integers")]
     fn binary_subtraction_mixed_types() {
         // Arrange
-        let expr: Expr = Expr::Binary {
+        let expr = Expr::Binary {
             left: Box::new(Expr::Literal {
                 value: Literal::String("Hello".into()),
             }),
@@ -281,47 +289,45 @@ mod tests {
             }),
         };
 
-        // Act, Assert
+        // Act & Assert
         evaluate(&expr);
     }
 
     #[test]
     fn binary_multiplication_numbers() {
         // Arrange
-        let expected: Literal = Literal::Number(6.0);
-        let expr: Expr = new_binary_expression(3.0, TokenType::Star, 2.0);
+        let expr = new_binary_expression(3.0, TokenType::Star, 2.0);
 
         // Act
-        let result: Literal = evaluate(&expr);
+        let result = evaluate(&expr);
 
         // Assert
-        assert_eq!(result, expected);
+        assert_eq!(result, Value::Number(6.0));
     }
 
     #[test]
     fn binary_division_numbers() {
         // Arrange
-        let expected: Literal = Literal::Number(2.0);
-        let expr: Expr = new_binary_expression(6.0, TokenType::Slash, 3.0);
+        let expr = new_binary_expression(6.0, TokenType::Slash, 3.0);
 
         // Act
-        let result: Literal = evaluate(&expr);
+        let result = evaluate(&expr);
 
         // Assert
-        assert_eq!(result, expected);
+        assert_eq!(result, Value::Number(2.0));
     }
 
     #[test]
     fn binary_division_by_zero() {
         // Arrange
-        let expr: Expr = new_binary_expression(3.0, TokenType::Slash, 0.0);
+        let expr = new_binary_expression(3.0, TokenType::Slash, 0.0);
 
         // Act
-        let result: Literal = evaluate(&expr);
+        let result = evaluate(&expr);
 
         // Assert
         match result {
-            Literal::Number(x) => assert!(x.is_infinite()),
+            Value::Number(x) => assert!(x.is_infinite()),
             _ => unreachable!(),
         }
     }
@@ -329,87 +335,81 @@ mod tests {
     #[test]
     fn binary_comparison_equal() {
         // Arrange
-        let expected: Literal = Literal::Boolean(true);
-        let expr: Expr = new_binary_expression(2.0, TokenType::EqualEqual, 2.0);
+        let expr = new_binary_expression(2.0, TokenType::EqualEqual, 2.0);
 
         // Act
-        let result: Literal = evaluate(&expr);
+        let result = evaluate(&expr);
 
         // Assert
-        assert_eq!(result, expected);
+        assert_eq!(result, Value::Boolean(true));
     }
 
     #[test]
     fn binary_comparison_not_equal() {
         // Arrange
-        let expected: Literal = Literal::Boolean(true);
-        let expr: Expr = new_binary_expression(3.0, TokenType::BangEqual, 2.0);
+        let expr = new_binary_expression(3.0, TokenType::BangEqual, 2.0);
 
         // Act
-        let result: Literal = evaluate(&expr);
+        let result = evaluate(&expr);
 
         // Assert
-        assert_eq!(result, expected);
+        assert_eq!(result, Value::Boolean(true));
     }
 
     #[test]
     fn binary_comparison_greater() {
         // Arrange
-        let expected: Literal = Literal::Boolean(true);
-        let expr: Expr = new_binary_expression(3.0, TokenType::Greater, 1.0);
+        let expr = new_binary_expression(3.0, TokenType::Greater, 1.0);
 
         // Act
-        let result: Literal = evaluate(&expr);
+        let result = evaluate(&expr);
 
         // Assert
-        assert_eq!(result, expected);
+        assert_eq!(result, Value::Boolean(true));
     }
 
     #[test]
     fn binary_comparison_greater_equal() {
         // Arrange
-        let expected: Literal = Literal::Boolean(true);
-        let expr: Expr = new_binary_expression(3.0, TokenType::GreaterEqual, 3.0);
+        let expr = new_binary_expression(3.0, TokenType::GreaterEqual, 3.0);
 
         // Act
-        let result: Literal = evaluate(&expr);
+        let result = evaluate(&expr);
 
         // Assert
-        assert_eq!(result, expected);
+        assert_eq!(result, Value::Boolean(true));
     }
 
     #[test]
     fn binary_comparison_lesser() {
         // Arrange
-        let expected: Literal = Literal::Boolean(true);
-        let expr: Expr = new_binary_expression(1.0, TokenType::Less, 3.0);
+        let expr = new_binary_expression(1.0, TokenType::Less, 3.0);
 
         // Act
-        let result: Literal = evaluate(&expr);
+        let result = evaluate(&expr);
 
         // Assert
-        assert_eq!(result, expected);
+        assert_eq!(result, Value::Boolean(true));
     }
 
     #[test]
     fn binary_comparison_lesser_equal() {
         // Arrange
-        let expected: Literal = Literal::Boolean(true);
-        let expr: Expr = new_binary_expression(1.0, TokenType::LessEqual, 1.0);
+        let expr = new_binary_expression(1.0, TokenType::LessEqual, 1.0);
 
         // Act
-        let result: Literal = evaluate(&expr);
+        let result = evaluate(&expr);
 
         // Assert
-        assert_eq!(result, expected);
+        assert_eq!(result, Value::Boolean(true));
     }
 
     #[test]
     fn test_is_truthy() {
-        assert_eq!(is_truthy(&Literal::Boolean(true)), true);
-        assert_eq!(is_truthy(&Literal::Boolean(false)), false);
-        assert_eq!(is_truthy(&Literal::Nil), false);
-        assert_eq!(is_truthy(&Literal::String("hi".into())), true);
-        assert_eq!(is_truthy(&Literal::Number(0.0)), true);
+        assert_eq!(is_truthy(&Value::Boolean(true)), true);
+        assert_eq!(is_truthy(&Value::Boolean(false)), false);
+        assert_eq!(is_truthy(&Value::Nil), false);
+        assert_eq!(is_truthy(&Value::String("hi".into())), true);
+        assert_eq!(is_truthy(&Value::Number(0.0)), true);
     }
 }
