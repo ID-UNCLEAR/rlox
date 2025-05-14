@@ -2,12 +2,13 @@
 mod codegen_integration_tests {
     use crate::ast::Expr;
     use crate::codegen::interpreter;
+    use crate::codegen::interpreter::Value;
     use crate::common::{Literal, Token, TokenType};
 
     #[test]
     fn test_literal() {
         // Arrange
-        let expected: Literal = Literal::String(String::from("foobar"));
+        let expected: Value = Value::String(String::from("foobar"));
         let expr: Expr = Expr::Binary {
             left: Box::new(Expr::Literal {
                 value: Literal::String("foo".into()),
@@ -24,7 +25,7 @@ mod codegen_integration_tests {
         };
 
         // Act
-        let result: Literal = interpreter::evaluate(&expr);
+        let result: Value = interpreter::evaluate(&expr);
 
         // Assert
         assert_eq!(result, expected);

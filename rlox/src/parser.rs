@@ -40,6 +40,25 @@ impl Parser {
         }
     }
 
+    pub fn parse_all(&mut self) -> Vec<Expr> {
+        let mut expressions: Vec<Expr> = Vec::new();
+
+        while !self.is_at_end() {
+            match self.expression() {
+                Ok(expr) => {
+                    expressions.push(expr);
+                    self.advance();
+                }
+                Err(err) => {
+                    eprintln!("{}", err);
+                    self.synchronize();
+                }
+            }
+        }
+
+        expressions
+    }
+
     fn expression(&mut self) -> Result<Expr, ParseError> {
         self.equality()
     }
