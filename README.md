@@ -5,7 +5,7 @@
 A lox compiler written in Rust based on the book found at [Crafting Interpreters](https://craftinginterpreters.com).
 
 # Progress:
-[Chapter 7. Evaluating Expressions](https://craftinginterpreters.com/evaluating-expressions.html).
+[Chapter 8. Statements and State](https://craftinginterpreters.com/statements-and-state.html).
 
 # Todos:
 - Pretty AST printer
