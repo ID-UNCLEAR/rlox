@@ -1,7 +1,10 @@
-use crate::ast::Expr;
-use crate::common::Literal;
+use crate::ast::{Expr, Stmt};
+use crate::codegen::environment::Environment;
 use crate::common::TokenType;
+use crate::common::{Literal, Token};
+use std::cell::RefCell;
 use std::fmt;
+use std::rc::Rc;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Value {
@@ -9,6 +12,17 @@ pub enum Value {
     String(String),
     Boolean(bool),
     Nil,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct RuntimeError {
+    pub message: String,
+    pub token: Token,
+}
+
+pub struct Interpreter {
+    statements: Vec<Stmt>,
+    environment: Rc<RefCell<Environment>>,
 }
 
 impl fmt::Display for Value {
@@ -22,57 +36,128 @@ impl fmt::Display for Value {
     }
 }
 
-pub fn evaluate(expr: &Expr) -> Value {
-    match expr {
-        Expr::Literal { value } => match value {
-            Literal::Number(n) => Value::Number(*n),
-            Literal::String(s) => Value::String(s.clone()),
-            Literal::Boolean(b) => Value::Boolean(*b),
-            Literal::Nil => Value::Nil,
-        },
+impl Interpreter {
+    pub fn new(stmts: Vec<Stmt>) -> Self {
+        Interpreter {
+            statements: stmts,
+            environment: Environment::new(),
+        }
+    }
 
-        Expr::Grouping { expression } => evaluate(expression),
+    pub fn interpret(&mut self) {
+        let stmts = std::mem::take(&mut self.statements);
 
-        Expr::Unary { operator, right } => {
-            let right_val = evaluate(right);
-            match operator.token_type {
-                TokenType::Minus => match right_val {
-                    Value::Number(n) => Value::Number(-n),
-                    _ => panic!("Operator token type mismatch"),
-                },
-                TokenType::Bang => Value::Boolean(!is_truthy(&right_val)),
-                _ => panic!("Unknown unary operator"),
+        for stmt in stmts {
+            self.execute(&stmt);
+        }
+    }
+
+    pub fn execute(&mut self, stmt: &Stmt) {
+        match stmt {
+            Stmt::Expression { expression: expr } => {
+                self.evaluate(expr);
+            }
+            Stmt::Print { expression: expr } => {
+                let value: Value = self.evaluate(expr);
+                println!("{}", value);
+            }
+            Stmt::Var { name, initializer } => {
+                let value = self.evaluate(initializer);
+
+                self.environment
+                    .borrow_mut()
+                    .define(name.lexeme.clone(), value);
+            }
+            Stmt::Block { statements } => {
+                let new_env = Environment::with_enclosing(self.environment.clone());
+                self.execute_block(statements, Environment::with_enclosing(new_env));
             }
         }
+    }
 
-        Expr::Binary {
-            left,
-            operator,
-            right,
-        } => {
-            let left_val = evaluate(left);
-            let right_val = evaluate(right);
+    pub fn evaluate(&mut self, expr: &Expr) -> Value {
+        match expr {
+            Expr::Variable { name } => self
+                .environment
+                .borrow()
+                .get_value(name)
+                .expect("undeclared variable"),
+            Expr::Assign { name, value } => {
+                let val = self.evaluate(value);
+                self.environment
+                    .borrow_mut()
+                    .assign(name, val.clone())
+                    .expect("undeclared variable");
+                val
+            }
+            Expr::Literal { value } => match value {
+                Literal::Number(n) => Value::Number(*n),
+                Literal::String(s) => Value::String(s.clone()),
+                Literal::Boolean(b) => Value::Boolean(*b),
+                Literal::Nil => Value::Nil,
+            },
 
-            match operator.token_type {
-                TokenType::Plus => match (left_val, right_val) {
-                    (Value::Number(x), Value::Number(y)) => Value::Number(x + y),
-                    (Value::String(x), Value::String(y)) => Value::String(format!("{}{}", x, y)),
-                    _ => panic!("Operands must be two numbers or strings"),
-                },
-                TokenType::Minus => num_bin_op(left_val, right_val, |x, y| x - y),
-                TokenType::Star => num_bin_op(left_val, right_val, |x, y| x * y),
-                TokenType::Slash => num_bin_op(left_val, right_val, |x, y| x / y),
+            Expr::Grouping { expression } => self.evaluate(expression),
 
-                TokenType::Greater => bool_bin_op(left_val, right_val, |x, y| x > y),
-                TokenType::GreaterEqual => bool_bin_op(left_val, right_val, |x, y| x >= y),
-                TokenType::Less => bool_bin_op(left_val, right_val, |x, y| x < y),
-                TokenType::LessEqual => bool_bin_op(left_val, right_val, |x, y| x <= y),
-                TokenType::EqualEqual => Value::Boolean(left_val == right_val),
-                TokenType::BangEqual => Value::Boolean(left_val != right_val),
+            Expr::Unary { operator, right } => {
+                let right_val = self.evaluate(right);
+                match operator.token_type {
+                    TokenType::Minus => match right_val {
+                        Value::Number(n) => Value::Number(-n),
+                        _ => panic!("Operator token type mismatch"),
+                    },
+                    TokenType::Bang => Value::Boolean(!is_truthy(&right_val)),
+                    _ => panic!("Unknown unary operator"),
+                }
+            }
 
-                _ => panic!("Unknown binary operator"),
+            Expr::Binary {
+                left,
+                operator,
+                right,
+            } => {
+                let left_val = self.evaluate(left);
+                let right_val = self.evaluate(right);
+
+                match operator.token_type {
+                    TokenType::Plus => match (left_val, right_val) {
+                        (Value::Number(x), Value::Number(y)) => Value::Number(x + y),
+                        (Value::String(x), Value::String(y)) => {
+                            Value::String(format!("{}{}", x, y))
+                        }
+                        _ => panic!("Operands must be two numbers or strings"),
+                    },
+                    TokenType::Minus => num_bin_op(left_val, right_val, |x, y| x - y),
+                    TokenType::Star => num_bin_op(left_val, right_val, |x, y| x * y),
+                    TokenType::Slash => num_bin_op(left_val, right_val, |x, y| x / y),
+
+                    TokenType::Greater => bool_bin_op(left_val, right_val, |x, y| x > y),
+                    TokenType::GreaterEqual => bool_bin_op(left_val, right_val, |x, y| x >= y),
+                    TokenType::Less => bool_bin_op(left_val, right_val, |x, y| x < y),
+                    TokenType::LessEqual => bool_bin_op(left_val, right_val, |x, y| x <= y),
+                    TokenType::EqualEqual => Value::Boolean(left_val == right_val),
+                    TokenType::BangEqual => Value::Boolean(left_val != right_val),
+
+                    _ => panic!("Unknown binary operator"),
+                }
             }
         }
+    }
+
+    pub fn execute_block(&mut self, statements: &[Stmt], environment: Rc<RefCell<Environment>>) {
+        // Save the previous environment
+        let previous = self.environment.clone();
+
+        // Switch to the new environment (the block scope)
+        self.environment = environment;
+
+        // Execute all statements inside the block
+        for stmt in statements {
+            self.execute(stmt);
+        }
+
+        // Restore the previous environment (outer scope)
+        self.environment = previous;
     }
 }
 

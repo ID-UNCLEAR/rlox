@@ -1,4 +1,4 @@
-use crate::ast::Expr;
+use crate::ast::{Expr, Stmt};
 use crate::common::{Literal, Token, TokenType};
 use std::fmt;
 
@@ -29,38 +29,118 @@ impl Parser {
         Self { tokens, current: 0 }
     }
 
-    pub fn parse(&mut self) -> Option<Expr> {
-        match self.expression() {
-            Ok(expr) => Some(expr),
-            Err(err) => {
-                eprintln!("{}", err);
-
-                None
-            }
-        }
-    }
-
-    pub fn parse_all(&mut self) -> Vec<Expr> {
-        let mut expressions: Vec<Expr> = Vec::new();
+    pub fn parse(&mut self) -> Vec<Stmt> {
+        let mut statements = Vec::new();
 
         while !self.is_at_end() {
-            match self.expression() {
-                Ok(expr) => {
-                    expressions.push(expr);
-                    self.advance();
-                }
-                Err(err) => {
-                    eprintln!("{}", err);
-                    self.synchronize();
-                }
+            match self.declaration() {
+                Ok(stmt) => statements.push(stmt),
+                Err(_) => self.synchronize(),
             }
         }
 
-        expressions
+        statements
+    }
+
+    fn declaration(&mut self) -> Result<Stmt, ParseError> {
+        if self.match_token(&[TokenType::Var]) {
+            return self.variable_declaration();
+        }
+
+        self.statement()
+    }
+
+    fn variable_declaration(&mut self) -> Result<Stmt, ParseError> {
+        let name = self
+            .consume(&TokenType::Identifier, "Expected variable name.")?
+            .clone();
+
+        let initializer = if self.match_token(&[TokenType::Equal]) {
+            Some(self.expression()?)
+        } else {
+            None
+        };
+
+        self.consume(
+            &TokenType::SemiColon,
+            "Expected ';' after variable declaration.",
+        )?;
+
+        Ok(Stmt::Var {
+            name,
+            initializer: Box::new(initializer.expect("No initializer found!")),
+        })
+    }
+
+    fn statement(&mut self) -> Result<Stmt, ParseError> {
+        // Print Statement
+        if self.match_token(&[TokenType::Print]) {
+            return self.print_statement();
+        }
+
+        // Block statement
+        if self.match_token(&[TokenType::LeftBrace]) {
+            return self.block_statement();
+        }
+
+        self.expression_statement()
+    }
+
+    fn print_statement(&mut self) -> Result<Stmt, ParseError> {
+        let value = self.expression()?;
+        self.consume(&TokenType::SemiColon, "Expect ';' after value.")?;
+
+        Ok(Stmt::Print {
+            expression: Box::new(value),
+        })
+    }
+
+    fn block_statement(&mut self) -> Result<Stmt, ParseError> {
+        let mut statements: Vec<Stmt> = vec![];
+
+        while !self.is_at_end() && !self.check(&TokenType::RightBrace) {
+            statements.push(self.declaration()?);
+        }
+
+        self.consume(&TokenType::RightBrace, "Expect '}' after block statements.")?;
+
+        Ok(Stmt::Block { statements })
+    }
+
+    fn expression_statement(&mut self) -> Result<Stmt, ParseError> {
+        let expr = self.expression()?;
+        self.consume(&TokenType::SemiColon, "Expect ';' after expression.")?;
+
+        Ok(Stmt::Expression {
+            expression: Box::new(expr),
+        })
     }
 
     fn expression(&mut self) -> Result<Expr, ParseError> {
-        self.equality()
+        self.assignment()
+    }
+
+    fn assignment(&mut self) -> Result<Expr, ParseError> {
+        let expr: Expr = self.equality()?;
+
+        if self.match_token(&[TokenType::Equal]) {
+            let equals: Token = self.previous().clone();
+            let value: Expr = self.assignment()?;
+
+            if let Expr::Variable { name } = expr {
+                return Ok(Expr::Assign {
+                    name,
+                    value: Box::new(value),
+                });
+            }
+
+            return Err(ParseError {
+                message: "Invalid variable assignment".to_string(),
+                token: equals,
+            });
+        }
+
+        Ok(expr)
     }
 
     fn equality(&mut self) -> Result<Expr, ParseError> {
@@ -174,6 +254,12 @@ impl Parser {
             });
         }
 
+        if self.match_token(&[TokenType::Identifier]) {
+            return Ok(Expr::Variable {
+                name: self.previous().clone(),
+            });
+        }
+
         if self.match_token(&[TokenType::LeftParen]) {
             let expr: Expr = self.expression()?;
             self.consume(&TokenType::RightParen, "Expect ')' after expression.")?;
@@ -282,10 +368,10 @@ mod tests {
         let mut parser: Parser = Parser::new(tokens);
 
         // Act
-        let result: Option<Expr> = parser.parse();
+        let result = parser.parse();
 
         // Assert
-        assert!(result.is_none());
+        assert!(result.is_empty());
     }
 
     #[test]
@@ -300,7 +386,7 @@ mod tests {
         let mut parser: Parser = Parser::new(tokens);
 
         // Act
-        let result: Expr = parser.parse().unwrap();
+        let result = parser.parse();
 
         // Assert
         let expected: Expr = Expr::Binary {
@@ -313,7 +399,10 @@ mod tests {
             }),
         };
 
-        assert_eq!(result, expected);
+        match &result[0] {
+            Stmt::Expression { expression } => assert_eq!(**expression, expected),
+            _ => panic!("Expected expression statement."),
+        }
     }
 
     #[test]
@@ -328,7 +417,7 @@ mod tests {
         let mut parser: Parser = Parser::new(tokens);
 
         // Act
-        let result: Expr = parser.parse().unwrap();
+        let result = parser.parse();
 
         // Assert
         let expected: Expr = Expr::Binary {
@@ -341,7 +430,10 @@ mod tests {
             }),
         };
 
-        assert_eq!(result, expected);
+        match &result[0] {
+            Stmt::Expression { expression } => assert_eq!(**expression, expected),
+            _ => panic!("Expected expression statement."),
+        }
     }
 
     #[test]
@@ -356,7 +448,7 @@ mod tests {
         let mut parser: Parser = Parser::new(tokens);
 
         // Act
-        let result: Expr = parser.parse().unwrap();
+        let result = parser.parse();
 
         // Assert
         let expected: Expr = Expr::Binary {
@@ -369,7 +461,10 @@ mod tests {
             }),
         };
 
-        assert_eq!(result, expected);
+        match &result[0] {
+            Stmt::Expression { expression } => assert_eq!(**expression, expected),
+            _ => panic!("Expected expression statement."),
+        }
     }
 
     #[test]
@@ -384,7 +479,7 @@ mod tests {
         let mut parser: Parser = Parser::new(tokens);
 
         // Act
-        let result: Expr = parser.parse().unwrap();
+        let result = parser.parse();
 
         // Assert
         let expected = Expr::Binary {
@@ -397,7 +492,10 @@ mod tests {
             }),
         };
 
-        assert_eq!(result, expected);
+        match &result[0] {
+            Stmt::Expression { expression } => assert_eq!(**expression, expected),
+            _ => panic!("Expected expression statement."),
+        }
     }
 
     #[test]
@@ -411,7 +509,7 @@ mod tests {
         let mut parser: Parser = Parser::new(tokens);
 
         // Act
-        let result: Expr = parser.parse().unwrap();
+        let result = parser.parse();
 
         // Assert
         let expected = Expr::Unary {
@@ -421,7 +519,10 @@ mod tests {
             }),
         };
 
-        assert_eq!(result, expected);
+        match &result[0] {
+            Stmt::Expression { expression } => assert_eq!(**expression, expected),
+            _ => panic!("Expected expression statement."),
+        }
     }
 
     #[test]
@@ -435,7 +536,7 @@ mod tests {
         let mut parser: Parser = Parser::new(tokens);
 
         // Act
-        let result: Expr = parser.parse().unwrap();
+        let result = parser.parse();
 
         // Assert
         let expected = Expr::Unary {
@@ -445,7 +546,10 @@ mod tests {
             }),
         };
 
-        assert_eq!(result, expected);
+        match &result[0] {
+            Stmt::Expression { expression } => assert_eq!(**expression, expected),
+            _ => panic!("Expected expression statement."),
+        }
     }
 
     #[test]
@@ -459,10 +563,10 @@ mod tests {
         let mut parser: Parser = Parser::new(tokens);
 
         // Act
-        let result: Option<Expr> = parser.parse();
+        let result = parser.parse();
 
         // Assert
-        assert!(result.is_none());
+        assert!(result.is_empty());
     }
 
     #[test]
@@ -475,14 +579,17 @@ mod tests {
         let mut parser: Parser = Parser::new(tokens);
 
         // Act
-        let result: Expr = parser.parse().unwrap();
+        let result = parser.parse();
 
         // Assert
         let expected = Expr::Literal {
             value: Literal::Boolean(true),
         };
 
-        assert_eq!(result, expected);
+        match &result[0] {
+            Stmt::Expression { expression } => assert_eq!(**expression, expected),
+            _ => panic!("Expected expression statement."),
+        }
     }
 
     #[test]
@@ -495,14 +602,17 @@ mod tests {
         let mut parser: Parser = Parser::new(tokens);
 
         // Act
-        let result: Expr = parser.parse().unwrap();
+        let result = parser.parse();
 
         // Assert
         let expected = Expr::Literal {
             value: Literal::Boolean(false),
         };
 
-        assert_eq!(result, expected);
+        match &result[0] {
+            Stmt::Expression { expression } => assert_eq!(**expression, expected),
+            _ => panic!("Expected expression statement."),
+        }
     }
 
     #[test]
@@ -515,14 +625,17 @@ mod tests {
         let mut parser: Parser = Parser::new(tokens);
 
         // Act
-        let result: Expr = parser.parse().unwrap();
+        let result = parser.parse();
 
         // Assert
         let expected = Expr::Literal {
             value: Literal::Nil,
         };
 
-        assert_eq!(result, expected);
+        match &result[0] {
+            Stmt::Expression { expression } => assert_eq!(**expression, expected),
+            _ => panic!("Expected expression statement."),
+        }
     }
 
     #[test]
@@ -539,14 +652,17 @@ mod tests {
         let mut parser: Parser = Parser::new(tokens);
 
         // Act
-        let result: Expr = parser.parse().unwrap();
+        let result = parser.parse();
 
         // Assert
         let expected = Expr::Literal {
             value: Literal::String("test".to_string()),
         };
 
-        assert_eq!(result, expected);
+        match &result[0] {
+            Stmt::Expression { expression } => assert_eq!(**expression, expected),
+            _ => panic!("Expected expression statement."),
+        }
     }
 
     #[test]
@@ -559,14 +675,17 @@ mod tests {
         let mut parser: Parser = Parser::new(tokens);
 
         // Act
-        let result: Expr = parser.parse().unwrap();
+        let result = parser.parse();
 
         // Assert
         let expected = Expr::Literal {
             value: Literal::Number(123.0),
         };
 
-        assert_eq!(result, expected);
+        match &result[0] {
+            Stmt::Expression { expression } => assert_eq!(**expression, expected),
+            _ => panic!("Expected expression statement."),
+        }
     }
 
     #[test]
@@ -581,7 +700,7 @@ mod tests {
         let mut parser: Parser = Parser::new(tokens);
 
         // Act
-        let result: Expr = parser.parse().unwrap();
+        let result = parser.parse();
 
         // Assert
         let expected = Expr::Grouping {
@@ -590,7 +709,10 @@ mod tests {
             }),
         };
 
-        assert_eq!(result, expected);
+        match &result[0] {
+            Stmt::Expression { expression } => assert_eq!(**expression, expected),
+            _ => panic!("Expected expression statement."),
+        }
     }
 
     #[test]
@@ -607,7 +729,7 @@ mod tests {
         let mut parser: Parser = Parser::new(tokens);
 
         // Act
-        let result: Expr = parser.parse().unwrap();
+        let result = parser.parse();
 
         // Assert
         let expected = Expr::Grouping {
@@ -618,6 +740,9 @@ mod tests {
             }),
         };
 
-        assert_eq!(result, expected);
+        match &result[0] {
+            Stmt::Expression { expression } => assert_eq!(**expression, expected),
+            _ => panic!("Expected expression statement."),
+        }
     }
 }

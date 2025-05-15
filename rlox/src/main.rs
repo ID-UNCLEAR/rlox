@@ -6,9 +6,9 @@ mod scanner;
 mod semantics;
 mod tests;
 
-use crate::ast::Expr;
+use crate::ast::{Expr, Stmt};
 use crate::codegen::interpreter;
-use crate::codegen::interpreter::Value;
+use crate::codegen::interpreter::{Interpreter, Value};
 use crate::common::Token;
 use crate::parser::Parser;
 use crate::scanner::Scanner;
@@ -26,22 +26,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let tokens: Vec<Token> = scanner.scan_tokens();
 
     let mut parser: Parser = Parser::new(tokens);
-    match parser.parse() {
-        Some(expr) => {
-            let result: Value = interpreter::evaluate(&expr);
-            println!("{}", result);
-        }
-        None => {
-            eprintln!("Failed to parse expression.");
-        }
-    }
+    let statements: Vec<Stmt> = parser.parse();
 
-    let expressions: Vec<Expr> = parser.parse_all();
-
-    for expr in expressions {
-        let value = interpreter::evaluate(&expr);
-        println!("{}", value);
-    }
+    let mut interpreter: Interpreter = Interpreter::new(statements);
+    interpreter.interpret();
 
     Ok(())
 }
