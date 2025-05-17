@@ -1,8 +1,7 @@
-use crate::common::error_context::{ErrorContext, PrettyError};
+use crate::common::error_context::ErrorContext;
 use crate::common::keywords::keywords;
 use crate::common::{Literal, Token, TokenType};
 use crate::scanner::scan_error::ScanError;
-use std::fmt;
 
 #[derive(Debug)]
 pub struct Scanner {
@@ -24,28 +23,25 @@ impl Scanner {
         }
     }
 
-    pub fn scan_tokens(mut self) -> Result<Vec<Token>, Vec<ScanError>> {
-        let mut errors: Vec<ScanError> = vec![];
+    pub fn tokenize(mut self) -> Option<Vec<Token>> {
+        let mut has_error = false;
 
         while !self.is_at_end() {
             self.start = self.current;
             if let Err(e) = self.scan_token() {
-                errors.push(e);
+                has_error = true;
+                eprintln!("{}", e);
             }
         }
 
-        if errors.is_empty() {
-            self.tokens.push(Token {
-                token_type: TokenType::Eof,
-                lexeme: String::new(),
-                literal: None,
-                line: self.line,
-            });
+        self.tokens.push(Token {
+            token_type: TokenType::Eof,
+            lexeme: String::new(),
+            literal: None,
+            line: self.line,
+        });
 
-            Ok(self.tokens)
-        } else {
-            Err(errors)
-        }
+        if has_error { None } else { Some(self.tokens) }
     }
 
     fn is_at_end(&self) -> bool {
@@ -53,7 +49,7 @@ impl Scanner {
     }
 
     fn scan_token(&mut self) -> Result<(), ScanError> {
-        let c: char = self.advance();
+        let c = self.advance();
 
         match c {
             '(' => self.add_token(TokenType::LeftParen),
@@ -134,7 +130,7 @@ impl Scanner {
     }
 
     fn advance(&mut self) -> char {
-        let c: char = self
+        let c = self
             .source
             .chars()
             .nth(self.current)
@@ -206,7 +202,7 @@ impl Scanner {
         self.advance();
 
         // Trim the surrounding quotes of the value
-        let value: String = self.source[self.start + 1..self.current - 1].to_string();
+        let value = self.source[self.start + 1..self.current - 1].to_string();
         self.add_token_literal(TokenType::String, Some(Literal::String(value)));
 
         Ok(())
@@ -227,8 +223,8 @@ impl Scanner {
         }
 
         // Get the value and parse it as a string.
-        let text: &str = &self.source[self.start..self.current];
-        let value: f64 = text.parse::<f64>().expect("Failed to parse number");
+        let text = &self.source[self.start..self.current];
+        let value = text.parse::<f64>().expect("Failed to parse number");
 
         self.add_token_literal(TokenType::Number, Some(Literal::Number(value)));
     }
@@ -238,8 +234,8 @@ impl Scanner {
             self.advance();
         }
 
-        let text: &str = &self.source[self.start..self.current];
-        let token_type: TokenType = keywords()
+        let text = &self.source[self.start..self.current];
+        let token_type = keywords()
             .get(text)
             .cloned()
             .unwrap_or(TokenType::Identifier);
@@ -291,13 +287,13 @@ mod tests {
     #[test]
     fn scan_single_character_tokens() {
         // Arrange
-        let source: &str = "(){},.-+;*/";
+        let source = "(){},.-+;*/";
 
         // Act
-        let tokens: Vec<Token> = Scanner::new(source).scan_tokens();
+        let tokens = Scanner::new(source).tokenize().unwrap();
 
         // Assert
-        let expected: Vec<TokenType> = vec![
+        let expected = vec![
             TokenType::LeftParen,
             TokenType::RightParen,
             TokenType::LeftBrace,
@@ -319,13 +315,13 @@ mod tests {
     #[test]
     fn scan_operators() {
         // Arrange
-        let source: &str = "! != = == > >= < <=";
+        let source = "! != = == > >= < <=";
 
         // Act
-        let tokens: Vec<Token> = Scanner::new(source).scan_tokens();
+        let tokens = Scanner::new(source).tokenize().unwrap();
 
         // Assert
-        let expected: Vec<TokenType> = vec![
+        let expected = vec![
             TokenType::Bang,
             TokenType::BangEqual,
             TokenType::Equal,
@@ -344,10 +340,10 @@ mod tests {
     #[test]
     fn scan_comment() {
         // Arrange
-        let source: &str = "// This is a comment!";
+        let source = "// This is a comment!";
 
         // Act
-        let tokens: Vec<Token> = Scanner::new(source).scan_tokens();
+        let tokens = Scanner::new(source).tokenize().unwrap();
 
         // Assert
         assert_eq!(tokens[0].token_type, TokenType::Eof);
@@ -356,31 +352,33 @@ mod tests {
     #[test]
     fn scan_multiline_comment() {
         // Arrange
-        let source: &str = "/* This is \n a multiline comment */";
+        let source = "/* This is \n a multiline comment */";
 
         // Act
-        let tokens: Vec<Token> = Scanner::new(source).scan_tokens();
+        let tokens = Scanner::new(source).tokenize().unwrap();
 
         // Assert
         assert_eq!(tokens[0].token_type, TokenType::Eof);
     }
 
     #[test]
-    #[should_panic(expected = "Unterminated multi-line comment")]
-    fn scan_unterminated_multiline_comment_panics() {
+    fn scan_unterminated_multiline_comment_returns_none() {
         // Arrange
-        let source: &str = "/* This is \n an unterminated multiline comment";
+        let source = "/* This is \n an unterminated multiline comment";
 
         // Act
-        Scanner::new(source).scan_tokens();
+        let result = Scanner::new(source).tokenize();
+
+        // Assert
+        assert!(result.is_none());
     }
 
     #[test]
     fn scan_string_literal() {
-        let source: &str = r#""hello""#;
+        let source = r#""hello""#;
 
         // Act
-        let tokens: Vec<Token> = Scanner::new(source).scan_tokens();
+        let tokens = Scanner::new(source).tokenize().unwrap();
 
         // Assert
         assert_eq!(tokens[0].token_type, TokenType::String);
@@ -392,19 +390,24 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Unterminated string")]
-    fn scan_unterminated_string_literal_panics() {
-        // Arrange, Act
-        Scanner::new(r#""hello"#).scan_tokens();
+    fn scan_unterminated_string_literal_returns_none() {
+        // Arrange
+        let source = r#""hello"#;
+
+        // Act
+        let result = Scanner::new(source).tokenize();
+
+        // Assert
+        assert!(result.is_none())
     }
 
     #[test]
     fn scan_number_literal() {
         // Arrange
-        let source: &str = "123.45";
+        let source = "123.45";
 
         // Act
-        let tokens: Vec<Token> = Scanner::new(source).scan_tokens();
+        let tokens = Scanner::new(source).tokenize().unwrap();
 
         // Assert
         assert_eq!(tokens[0].token_type, TokenType::Number);
@@ -415,10 +418,10 @@ mod tests {
     #[test]
     fn scan_keywords() {
         // Arrange
-        let source: &str = "class MyClass";
+        let source = "class MyClass";
 
         // Act
-        let tokens: Vec<Token> = Scanner::new(source).scan_tokens();
+        let tokens = Scanner::new(source).tokenize().unwrap();
 
         // Assert
         assert_eq!(tokens[0].token_type, TokenType::Class);
@@ -433,10 +436,10 @@ mod tests {
     #[test]
     fn ignore_whitespace() {
         // Arrange
-        let source: &str = " \t\n\r";
+        let source = " \t\n\r";
 
         // Act
-        let tokens: Vec<Token> = Scanner::new(source).scan_tokens();
+        let tokens = Scanner::new(source).tokenize().unwrap();
 
         // Assert
         assert_eq!(tokens[0].token_type, TokenType::Eof);
@@ -445,10 +448,10 @@ mod tests {
     #[test]
     fn scan_end_of_file() {
         // Arrange
-        let source: &str = "";
+        let source = "";
 
         // Act
-        let tokens: Vec<Token> = Scanner::new(source).scan_tokens();
+        let tokens = Scanner::new(source).tokenize().unwrap();
 
         // Assert
         assert_eq!(tokens[0].token_type, TokenType::Eof);
@@ -457,9 +460,14 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Unexpected character")]
-    fn scan_invalid_character_panics() {
-        // Arrange, Act
-        Scanner::new("@").scan_tokens();
+    fn scan_invalid_character_returns_none() {
+        // Arrange
+        let source = "@";
+
+        // Act
+        let result = Scanner::new(source).tokenize();
+
+        // Assert
+        assert!(result.is_none());
     }
 }

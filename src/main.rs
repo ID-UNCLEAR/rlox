@@ -7,11 +7,12 @@ mod semantics;
 mod tests;
 
 use crate::codegen::interpreter::Interpreter;
-use crate::parser::Parser;
+use crate::parser::parser::Parser;
 use crate::scanner::Scanner;
 use std::env::Args;
 use std::io::Write;
 use std::path::Path;
+use std::process::exit;
 use std::{env, fs, io};
 
 fn main() -> io::Result<()> {
@@ -67,18 +68,20 @@ fn get_path_argument() -> Option<String> {
 
 fn run(source: &str) {
     let scanner = Scanner::new(source.to_string());
-    let tokens = match scanner.scan_tokens() {
-        Ok(tokens) => tokens,
-        Err(errors) => {
-            for error in errors {
-                eprintln!("{}", error);
-            }
-            return;
+    let tokens = match scanner.tokenize() {
+        Some(tokens) => tokens,
+        None => {
+            exit(65);
         }
     };
 
     let mut parser = Parser::new(tokens);
-    let statements = parser.parse();
+    let statements = match parser.parse() {
+        Some(statements) => statements,
+        None => {
+            exit(65);
+        }
+    };
 
     let mut interpreter = Interpreter::new(statements);
     interpreter.interpret();

@@ -8,10 +8,8 @@ A lox compiler written in Rust based on the book found at [Crafting Interpreters
 [Chapter 8. Statements and State](https://craftinginterpreters.com/statements-and-state.html#scope).
 
 # Todos:
-- Pretty AST printer
 - Parser tests
 - Some PROPER error handling, cuz this is getting out of hand.
-- Interactive console if no lox file is provided
 - More documentation and stuff... :)
 
 # Fun to Implement?
