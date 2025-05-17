@@ -1,9 +1,14 @@
-[workspace]
-resolver = "3"
-members = [
-    "rlox"
-]
-
-[workspace.package]
+[package]
+name = "rlox"
+version = "0.1.0"
+license = "MIT"
+description = "A LOX compiler written in Rust."
+repository = "https://github.com/ID-UNCLEAR/rlox"
 edition = "2024"
 rust-version = "1.86"
+include = [
+    "src/**/*.rs"
+]
+
+[dependencies]
+colored = "3.0.0"
