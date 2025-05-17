@@ -1,5 +1,7 @@
-use crate::codegen::interpreter::{RuntimeError, Value};
+use crate::codegen::interpreter::Value;
+use crate::codegen::runtime_error::RuntimeError;
 use crate::common::Token;
+use crate::common::error_context::ErrorContext;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -11,6 +13,8 @@ pub struct Environment {
 }
 
 impl Environment {
+    const UNDEFINED_VARIABLE: &'static str = "undefined variable";
+
     pub fn new() -> Rc<RefCell<Self>> {
         Rc::new(RefCell::new(Self {
             values: HashMap::new(),
@@ -35,10 +39,7 @@ impl Environment {
         } else if let Some(ref enclosing) = self.enclosing {
             enclosing.borrow().get_value(name)
         } else {
-            Err(RuntimeError {
-                message: "Undefined variable".to_string(),
-                token: name.clone(),
-            })
+            Err(error(Self::UNDEFINED_VARIABLE.into(), name.clone()))
         }
     }
 
@@ -49,10 +50,18 @@ impl Environment {
         } else if let Some(ref enclosing) = self.enclosing {
             enclosing.borrow_mut().assign(name, value)
         } else {
-            Err(RuntimeError {
-                message: "Undefined variable".to_string(),
-                token: name.clone(),
-            })
+            Err(error(Self::UNDEFINED_VARIABLE.into(), name.clone()))
         }
+    }
+}
+
+fn error(message: String, token: Token) -> RuntimeError {
+    RuntimeError {
+        message,
+        context: ErrorContext {
+            line_number: token.line,
+            line: "".into(),
+            lexeme: token.lexeme,
+        },
     }
 }

@@ -1,7 +1,7 @@
 use colored::Colorize;
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ErrorContext {
     pub line_number: usize,
     pub line: String,

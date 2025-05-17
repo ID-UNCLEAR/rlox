@@ -66,23 +66,12 @@ fn get_path_argument() -> Option<String> {
     None
 }
 
-fn run(source: &str) {
-    let scanner = Scanner::new(source.to_string());
-    let tokens = match scanner.tokenize() {
-        Some(tokens) => tokens,
-        None => {
-            exit(65);
-        }
-    };
+fn run(source: impl Into<String>) {
+    let tokens = Scanner::new(source).tokenize().unwrap_or_else(|| exit(65));
 
-    let mut parser = Parser::new(tokens);
-    let statements = match parser.parse() {
-        Some(statements) => statements,
-        None => {
-            exit(65);
-        }
-    };
+    let statements = Parser::new(tokens).parse().unwrap_or_else(|| exit(65));
 
-    let mut interpreter = Interpreter::new(statements);
-    interpreter.interpret();
+    Interpreter::new(statements)
+        .interpret()
+        .unwrap_or_else(|_| exit(70));
 }

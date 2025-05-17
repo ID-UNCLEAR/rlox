@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod scanner_integration_tests {
-    use crate::common::{Token, TokenType};
+    use crate::common::TokenType;
     use crate::scanner::Scanner;
 
     #[test]

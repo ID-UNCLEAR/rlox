@@ -390,6 +390,7 @@ mod tests {
             token(TokenType::Number, "1", Some(Literal::Number(1.0))),
             token(TokenType::EqualEqual, "==", None),
             token(TokenType::Number, "2", Some(Literal::Number(2.0))),
+            token(TokenType::SemiColon, ";", None),
             token(TokenType::Eof, "", None),
         ];
         let mut parser = Parser::new(tokens);
@@ -421,6 +422,7 @@ mod tests {
             token(TokenType::Number, "3", Some(Literal::Number(3.0))),
             token(TokenType::Less, "<", None),
             token(TokenType::Number, "4", Some(Literal::Number(4.0))),
+            token(TokenType::SemiColon, ";", None),
             token(TokenType::Eof, "", None),
         ];
         let mut parser = Parser::new(tokens);
@@ -452,6 +454,7 @@ mod tests {
             token(TokenType::Number, "5", Some(Literal::Number(5.0))),
             token(TokenType::Plus, "+", None),
             token(TokenType::Number, "6", Some(Literal::Number(6.0))),
+            token(TokenType::SemiColon, ";", None),
             token(TokenType::Eof, "", None),
         ];
         let mut parser = Parser::new(tokens);
@@ -483,6 +486,7 @@ mod tests {
             token(TokenType::Number, "7", Some(Literal::Number(7.0))),
             token(TokenType::Star, "*", None),
             token(TokenType::Number, "8", Some(Literal::Number(8.0))),
+            token(TokenType::SemiColon, ";", None),
             token(TokenType::Eof, "", None),
         ];
         let mut parser = Parser::new(tokens);
@@ -513,6 +517,7 @@ mod tests {
         let tokens: Vec<Token> = vec![
             token(TokenType::Bang, "!", None),
             token(TokenType::True, "true", Some(Literal::Boolean(true))),
+            token(TokenType::SemiColon, ";", None),
             token(TokenType::Eof, "", None),
         ];
         let mut parser = Parser::new(tokens);
@@ -540,6 +545,7 @@ mod tests {
         let tokens: Vec<Token> = vec![
             token(TokenType::Minus, "-", None),
             token(TokenType::Number, "3", Some(Literal::Number(3.0))),
+            token(TokenType::SemiColon, ";", None),
             token(TokenType::Eof, "", None),
         ];
         let mut parser = Parser::new(tokens);
@@ -583,6 +589,7 @@ mod tests {
         // Arrange
         let tokens: Vec<Token> = vec![
             token(TokenType::True, "true", Some(Literal::Boolean(true))),
+            token(TokenType::SemiColon, ";", None),
             token(TokenType::Eof, "", None),
         ];
         let mut parser = Parser::new(tokens);
@@ -606,6 +613,7 @@ mod tests {
         // Arrange
         let tokens: Vec<Token> = vec![
             token(TokenType::False, "false", Some(Literal::Boolean(false))),
+            token(TokenType::SemiColon, ";", None),
             token(TokenType::Eof, "", None),
         ];
         let mut parser = Parser::new(tokens);
@@ -629,6 +637,7 @@ mod tests {
         // Arrange
         let tokens: Vec<Token> = vec![
             token(TokenType::Nil, "nil", Some(Literal::Nil)),
+            token(TokenType::SemiColon, ";", None),
             token(TokenType::Eof, "", None),
         ];
         let mut parser = Parser::new(tokens);
@@ -656,6 +665,7 @@ mod tests {
                 "test",
                 Some(Literal::String("test".to_string())),
             ),
+            token(TokenType::SemiColon, ";", None),
             token(TokenType::Eof, "", None),
         ];
         let mut parser = Parser::new(tokens);
@@ -679,6 +689,7 @@ mod tests {
         // Arrange
         let tokens: Vec<Token> = vec![
             token(TokenType::Number, "123", Some(Literal::Number(123.0))),
+            token(TokenType::SemiColon, ";", None),
             token(TokenType::Eof, "", None),
         ];
         let mut parser = Parser::new(tokens);
@@ -704,6 +715,7 @@ mod tests {
             token(TokenType::LeftParen, "(", None),
             token(TokenType::Number, "1", Some(Literal::Number(1.0))),
             token(TokenType::RightParen, ")", None),
+            token(TokenType::SemiColon, ";", None),
             token(TokenType::Eof, "", None),
         ];
         let mut parser = Parser::new(tokens);
@@ -733,6 +745,7 @@ mod tests {
             token(TokenType::Number, "1", Some(Literal::Number(1.0))),
             token(TokenType::RightParen, ")", None),
             token(TokenType::RightParen, ")", None),
+            token(TokenType::SemiColon, ";", None),
             token(TokenType::Eof, "", None),
         ];
         let mut parser = Parser::new(tokens);

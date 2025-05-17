@@ -1,6 +1,8 @@
 use crate::ast::{Expr, Stmt};
 use crate::codegen::environment::Environment;
+use crate::codegen::runtime_error::RuntimeError;
 use crate::common::TokenType;
+use crate::common::error_context::ErrorContext;
 use crate::common::{Literal, Token};
 use std::cell::RefCell;
 use std::fmt;
@@ -14,17 +16,6 @@ pub enum Value {
     Nil,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct RuntimeError {
-    pub message: String,
-    pub token: Token,
-}
-
-pub struct Interpreter {
-    statements: Vec<Stmt>,
-    environment: Rc<RefCell<Environment>>,
-}
-
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -36,6 +27,11 @@ impl fmt::Display for Value {
     }
 }
 
+pub struct Interpreter {
+    statements: Vec<Stmt>,
+    environment: Rc<RefCell<Environment>>,
+}
+
 impl Interpreter {
     pub fn new(stmts: Vec<Stmt>) -> Self {
         Interpreter {
@@ -44,70 +40,74 @@ impl Interpreter {
         }
     }
 
-    pub fn interpret(&mut self) {
+    pub fn interpret(&mut self) -> Result<(), RuntimeError> {
         let stmts = std::mem::take(&mut self.statements);
-
         for stmt in stmts {
-            self.execute(&stmt);
+            match self.execute(&stmt) {
+                Ok(_) => {}
+                Err(e) => {
+                    eprintln!("{}", e);
+                    return Err(e);
+                }
+            };
         }
+
+        Ok(())
     }
 
-    pub fn execute(&mut self, stmt: &Stmt) {
+    pub fn execute(&mut self, stmt: &Stmt) -> Result<(), RuntimeError> {
         match stmt {
             Stmt::Expression { expression: expr } => {
-                self.evaluate(expr);
+                self.evaluate(expr)?;
+                Ok(())
             }
             Stmt::Print { expression: expr } => {
-                let value: Value = self.evaluate(expr);
+                let value = self.evaluate(expr)?;
                 println!("{}", value);
+                Ok(())
             }
             Stmt::Var { name, initializer } => {
-                let value = self.evaluate(initializer);
+                let value = self.evaluate(initializer)?;
 
                 self.environment
                     .borrow_mut()
                     .define(name.lexeme.clone(), value);
+
+                Ok(())
             }
             Stmt::Block { statements } => {
                 let new_env = Environment::with_enclosing(self.environment.clone());
-                self.execute_block(statements, Environment::with_enclosing(new_env));
+                self.execute_block(statements, Environment::with_enclosing(new_env))
             }
         }
     }
 
-    pub fn evaluate(&mut self, expr: &Expr) -> Value {
+    pub fn evaluate(&mut self, expr: &Expr) -> Result<Value, RuntimeError> {
         match expr {
-            Expr::Variable { name } => self
-                .environment
-                .borrow()
-                .get_value(name)
-                .expect("undeclared variable"),
+            Expr::Variable { name } => self.environment.borrow().get_value(name),
             Expr::Assign { name, value } => {
-                let val = self.evaluate(value);
-                self.environment
-                    .borrow_mut()
-                    .assign(name, val.clone())
-                    .expect("undeclared variable");
-                val
+                let val = self.evaluate(value)?;
+                self.environment.borrow_mut().assign(name, val.clone())?;
+                Ok(val)
             }
             Expr::Literal { value } => match value {
-                Literal::Number(n) => Value::Number(*n),
-                Literal::String(s) => Value::String(s.clone()),
-                Literal::Boolean(b) => Value::Boolean(*b),
-                Literal::Nil => Value::Nil,
+                Literal::Number(n) => Ok(Value::Number(*n)),
+                Literal::String(s) => Ok(Value::String(s.clone())),
+                Literal::Boolean(b) => Ok(Value::Boolean(*b)),
+                Literal::Nil => Ok(Value::Nil),
             },
 
             Expr::Grouping { expression } => self.evaluate(expression),
 
             Expr::Unary { operator, right } => {
-                let right_val = self.evaluate(right);
+                let right_val = self.evaluate(right)?;
                 match operator.token_type {
                     TokenType::Minus => match right_val {
-                        Value::Number(n) => Value::Number(-n),
-                        _ => panic!("Operator token type mismatch"),
+                        Value::Number(n) => Ok(Value::Number(-n)),
+                        _ => Err(error("Operator token type mismatch".into(), operator)),
                     },
-                    TokenType::Bang => Value::Boolean(!is_truthy(&right_val)),
-                    _ => panic!("Unknown unary operator"),
+                    TokenType::Bang => Ok(Value::Boolean(!is_truthy(&right_val))),
+                    _ => Err(error("Operator token type mismatch".into(), operator)),
                 }
             }
 
@@ -116,35 +116,50 @@ impl Interpreter {
                 operator,
                 right,
             } => {
-                let left_val = self.evaluate(left);
-                let right_val = self.evaluate(right);
+                let left_val = self.evaluate(left)?;
+                let right_val = self.evaluate(right)?;
 
                 match operator.token_type {
                     TokenType::Plus => match (left_val, right_val) {
-                        (Value::Number(x), Value::Number(y)) => Value::Number(x + y),
+                        (Value::Number(x), Value::Number(y)) => Ok(Value::Number(x + y)),
                         (Value::String(x), Value::String(y)) => {
-                            Value::String(format!("{}{}", x, y))
+                            Ok(Value::String(format!("{}{}", x, y)))
                         }
-                        _ => panic!("Operands must be two numbers or strings"),
+                        _ => Err(error("Operator token type mismatch".into(), operator)),
                     },
-                    TokenType::Minus => num_bin_op(left_val, right_val, |x, y| x - y),
-                    TokenType::Star => num_bin_op(left_val, right_val, |x, y| x * y),
-                    TokenType::Slash => num_bin_op(left_val, right_val, |x, y| x / y),
+                    TokenType::Minus => num_bin_op(left_val, right_val, |x, y| x - y)
+                        .map_err(|msg| error(msg, operator)),
 
-                    TokenType::Greater => bool_bin_op(left_val, right_val, |x, y| x > y),
-                    TokenType::GreaterEqual => bool_bin_op(left_val, right_val, |x, y| x >= y),
-                    TokenType::Less => bool_bin_op(left_val, right_val, |x, y| x < y),
-                    TokenType::LessEqual => bool_bin_op(left_val, right_val, |x, y| x <= y),
-                    TokenType::EqualEqual => Value::Boolean(left_val == right_val),
-                    TokenType::BangEqual => Value::Boolean(left_val != right_val),
+                    TokenType::Star => num_bin_op(left_val, right_val, |x, y| x * y)
+                        .map_err(|msg| error(msg, operator)),
 
-                    _ => panic!("Unknown binary operator"),
+                    TokenType::Slash => num_bin_op(left_val, right_val, |x, y| x / y)
+                        .map_err(|msg| error(msg, operator)),
+
+                    TokenType::Greater => bool_bin_op(left_val, right_val, |x, y| x > y)
+                        .map_err(|msg| error(msg, operator)),
+                    TokenType::GreaterEqual => bool_bin_op(left_val, right_val, |x, y| x >= y)
+                        .map_err(|msg| error(msg, operator)),
+
+                    TokenType::Less => bool_bin_op(left_val, right_val, |x, y| x < y)
+                        .map_err(|msg| error(msg, operator)),
+                    TokenType::LessEqual => bool_bin_op(left_val, right_val, |x, y| x <= y)
+                        .map_err(|msg| error(msg, operator)),
+
+                    TokenType::EqualEqual => Ok(Value::Boolean(left_val == right_val)),
+                    TokenType::BangEqual => Ok(Value::Boolean(left_val != right_val)),
+
+                    _ => Err(error("Operator token type mismatch".into(), operator)),
                 }
             }
         }
     }
 
-    pub fn execute_block(&mut self, statements: &[Stmt], environment: Rc<RefCell<Environment>>) {
+    pub fn execute_block(
+        &mut self,
+        statements: &[Stmt],
+        environment: Rc<RefCell<Environment>>,
+    ) -> Result<(), RuntimeError> {
         // Save the previous environment
         let previous = self.environment.clone();
 
@@ -153,33 +168,35 @@ impl Interpreter {
 
         // Execute all statements inside the block
         for stmt in statements {
-            self.execute(stmt);
+            self.execute(stmt)?;
         }
 
         // Restore the previous environment (outer scope)
         self.environment = previous;
+
+        Ok(())
     }
 }
 
-fn num_bin_op<F>(x: Value, y: Value, op: F) -> Value
+fn num_bin_op<F>(x: Value, y: Value, op: F) -> Result<Value, String>
 where
     F: Fn(f64, f64) -> f64,
 {
     if let (Value::Number(x), Value::Number(y)) = (x, y) {
-        Value::Number(op(x, y))
+        Ok(Value::Number(op(x, y)))
     } else {
-        panic!("Operands must be numbers/integers");
+        Err("Operator token type mismatch".into())
     }
 }
 
-fn bool_bin_op<F>(x: Value, y: Value, op: F) -> Value
+fn bool_bin_op<F>(x: Value, y: Value, op: F) -> Result<Value, String>
 where
     F: Fn(f64, f64) -> bool,
 {
     if let (Value::Number(x), Value::Number(y)) = (x, y) {
-        Value::Boolean(op(x, y))
+        Ok(Value::Boolean(op(x, y)))
     } else {
-        panic!("Operands must be numbers/integers");
+        Err("Operands must be numbers/integers".into())
     }
 }
 
@@ -188,6 +205,17 @@ fn is_truthy(val: &Value) -> bool {
         Value::Nil => false,
         Value::Boolean(b) => *b,
         _ => true,
+    }
+}
+
+fn error(message: String, token: &Token) -> RuntimeError {
+    RuntimeError {
+        message,
+        context: ErrorContext {
+            line_number: token.line,
+            line: "".into(),
+            lexeme: token.lexeme.clone(),
+        },
     }
 }
 
@@ -225,7 +253,7 @@ mod tests {
         };
 
         // Act
-        let result = evaluate(&expr);
+        let result = Interpreter::new(vec![]).evaluate(&expr).unwrap();
 
         // Assert
         assert_eq!(result, Value::Number(42.0));
@@ -241,7 +269,7 @@ mod tests {
         };
 
         // Act
-        let result = evaluate(&expr);
+        let result = Interpreter::new(vec![]).evaluate(&expr).unwrap();
 
         // Assert
         assert_eq!(result, Value::Boolean(true));
@@ -258,7 +286,7 @@ mod tests {
         };
 
         // Act
-        let result = evaluate(&expr);
+        let result = Interpreter::new(vec![]).evaluate(&expr).unwrap();
 
         // Assert
         assert_eq!(result, Value::Number(-5.0));
@@ -275,7 +303,7 @@ mod tests {
         };
 
         // Act
-        let result = evaluate(&expr);
+        let result = Interpreter::new(vec![]).evaluate(&expr).unwrap();
 
         // Assert
         assert_eq!(result, Value::Boolean(false));
@@ -292,7 +320,7 @@ mod tests {
         };
 
         // Act
-        let result = evaluate(&expr);
+        let result = Interpreter::new(vec![]).evaluate(&expr).unwrap();
 
         // Assert
         assert_eq!(result, Value::Boolean(true));
@@ -304,7 +332,7 @@ mod tests {
         let expr = new_binary_expression(2.0, TokenType::Plus, 3.0);
 
         // Act
-        let result = evaluate(&expr);
+        let result = Interpreter::new(vec![]).evaluate(&expr).unwrap();
 
         // Assert
         assert_eq!(result, Value::Number(5.0));
@@ -324,14 +352,13 @@ mod tests {
         };
 
         // Act
-        let result = evaluate(&expr);
+        let result = Interpreter::new(vec![]).evaluate(&expr).unwrap();
 
         // Assert
         assert_eq!(result, Value::String("Hello, world!".into()));
     }
 
     #[test]
-    #[should_panic(expected = "Operands must be two numbers or strings")]
     fn binary_addition_mixed_types() {
         // Arrange
         let expr = Expr::Binary {
@@ -344,8 +371,11 @@ mod tests {
             }),
         };
 
-        // Act & Assert
-        evaluate(&expr);
+        // Act
+        let result = Interpreter::new(vec![]).evaluate(&expr);
+
+        // Assert
+        assert!(result.is_err());
     }
 
     #[test]
@@ -354,14 +384,13 @@ mod tests {
         let expr = new_binary_expression(3.0, TokenType::Minus, 2.0);
 
         // Act
-        let result = evaluate(&expr);
+        let result = Interpreter::new(vec![]).evaluate(&expr).unwrap();
 
         // Assert
         assert_eq!(result, Value::Number(1.0));
     }
 
     #[test]
-    #[should_panic(expected = "Operands must be numbers/integers")]
     fn binary_subtraction_mixed_types() {
         // Arrange
         let expr = Expr::Binary {
@@ -374,8 +403,11 @@ mod tests {
             }),
         };
 
-        // Act & Assert
-        evaluate(&expr);
+        // Act
+        let result = Interpreter::new(vec![]).evaluate(&expr);
+
+        // Assert
+        assert!(result.is_err());
     }
 
     #[test]
@@ -384,7 +416,7 @@ mod tests {
         let expr = new_binary_expression(3.0, TokenType::Star, 2.0);
 
         // Act
-        let result = evaluate(&expr);
+        let result = Interpreter::new(vec![]).evaluate(&expr).unwrap();
 
         // Assert
         assert_eq!(result, Value::Number(6.0));
@@ -396,7 +428,7 @@ mod tests {
         let expr = new_binary_expression(6.0, TokenType::Slash, 3.0);
 
         // Act
-        let result = evaluate(&expr);
+        let result = Interpreter::new(vec![]).evaluate(&expr).unwrap();
 
         // Assert
         assert_eq!(result, Value::Number(2.0));
@@ -408,7 +440,7 @@ mod tests {
         let expr = new_binary_expression(3.0, TokenType::Slash, 0.0);
 
         // Act
-        let result = evaluate(&expr);
+        let result = Interpreter::new(vec![]).evaluate(&expr).unwrap();
 
         // Assert
         match result {
@@ -423,7 +455,7 @@ mod tests {
         let expr = new_binary_expression(2.0, TokenType::EqualEqual, 2.0);
 
         // Act
-        let result = evaluate(&expr);
+        let result = Interpreter::new(vec![]).evaluate(&expr).unwrap();
 
         // Assert
         assert_eq!(result, Value::Boolean(true));
@@ -435,7 +467,7 @@ mod tests {
         let expr = new_binary_expression(3.0, TokenType::BangEqual, 2.0);
 
         // Act
-        let result = evaluate(&expr);
+        let result = Interpreter::new(vec![]).evaluate(&expr).unwrap();
 
         // Assert
         assert_eq!(result, Value::Boolean(true));
@@ -447,7 +479,7 @@ mod tests {
         let expr = new_binary_expression(3.0, TokenType::Greater, 1.0);
 
         // Act
-        let result = evaluate(&expr);
+        let result = Interpreter::new(vec![]).evaluate(&expr).unwrap();
 
         // Assert
         assert_eq!(result, Value::Boolean(true));
@@ -459,7 +491,7 @@ mod tests {
         let expr = new_binary_expression(3.0, TokenType::GreaterEqual, 3.0);
 
         // Act
-        let result = evaluate(&expr);
+        let result = Interpreter::new(vec![]).evaluate(&expr).unwrap();
 
         // Assert
         assert_eq!(result, Value::Boolean(true));
@@ -471,7 +503,7 @@ mod tests {
         let expr = new_binary_expression(1.0, TokenType::Less, 3.0);
 
         // Act
-        let result = evaluate(&expr);
+        let result = Interpreter::new(vec![]).evaluate(&expr).unwrap();
 
         // Assert
         assert_eq!(result, Value::Boolean(true));
@@ -483,7 +515,7 @@ mod tests {
         let expr = new_binary_expression(1.0, TokenType::LessEqual, 1.0);
 
         // Act
-        let result = evaluate(&expr);
+        let result = Interpreter::new(vec![]).evaluate(&expr).unwrap();
 
         // Assert
         assert_eq!(result, Value::Boolean(true));
