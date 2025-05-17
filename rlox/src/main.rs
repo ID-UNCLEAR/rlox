@@ -15,15 +15,23 @@ use crate::scanner::Scanner;
 use std::env::Args;
 use std::error::Error;
 use std::path::Path;
-use std::{env, fs};
+use std::{env, fs, io};
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> io::Result<()> {
     let path_string: String = get_path_argument();
     let path: &Path = Path::new(&path_string);
     let source: String = fs::read_to_string(path)?;
 
     let scanner: Scanner = Scanner::new(source);
-    let tokens: Vec<Token> = scanner.scan_tokens();
+    let tokens: Vec<Token> = match scanner.scan_tokens() {
+        Ok(tokens) => tokens,
+        Err(errors) => {
+            for error in errors {
+                eprintln!("{}", error);
+            }
+            std::process::exit(1);
+        }
+    };
 
     let mut parser: Parser = Parser::new(tokens);
     let statements: Vec<Stmt> = parser.parse();

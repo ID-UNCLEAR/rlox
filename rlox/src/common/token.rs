@@ -18,7 +18,7 @@ pub struct Token {
 }
 
 impl fmt::Display for Token {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let literal_str: String = match &self.literal {
             Some(Literal::String(s)) => s.clone(),
             Some(Literal::Number(n)) => n.to_string(),

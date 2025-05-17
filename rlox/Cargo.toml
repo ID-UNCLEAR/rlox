@@ -9,3 +9,6 @@ rust-version.workspace = true
 include = [
     "src/**/*.rs"
 ]
+
+[dependencies]
+colored = "3.0.0"
