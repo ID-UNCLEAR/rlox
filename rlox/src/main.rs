@@ -6,61 +6,80 @@ mod scanner;
 mod semantics;
 mod tests;
 
-use crate::ast::{Expr, Stmt};
-use crate::codegen::interpreter;
-use crate::codegen::interpreter::{Interpreter, Value};
-use crate::common::Token;
+use crate::codegen::interpreter::Interpreter;
 use crate::parser::Parser;
 use crate::scanner::Scanner;
 use std::env::Args;
-use std::error::Error;
+use std::io::Write;
 use std::path::Path;
 use std::{env, fs, io};
 
 fn main() -> io::Result<()> {
-    let path_string: String = get_path_argument();
-    let path: &Path = Path::new(&path_string);
-    let source: String = fs::read_to_string(path)?;
+    if let Some(path_string) = get_path_argument() {
+        let source = fs::read_to_string(Path::new(&path_string))?;
+        run(&source);
+    } else {
+        println!("RLOX REPL - press Ctrl+D to exit");
+        let stdin = io::stdin();
 
-    let scanner: Scanner = Scanner::new(source);
-    let tokens: Vec<Token> = match scanner.scan_tokens() {
+        loop {
+            let mut buffer = String::new();
+
+            loop {
+                print!("> ");
+                io::stdout().flush()?;
+                let mut line = String::new();
+
+                if stdin.read_line(&mut line)? == 0 {
+                    return Ok(()); // EOF
+                }
+
+                if line.trim().is_empty() {
+                    break;
+                }
+
+                buffer.push_str(&line);
+            }
+
+            if !buffer.trim().is_empty() {
+                run(&buffer);
+                return Ok(());
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn get_path_argument() -> Option<String> {
+    let mut args: Args = env::args();
+    while let Some(arg) = args.next() {
+        if arg == "--path" {
+            return Some(
+                args.next()
+                    .expect("No value provided for `--path` argument!"),
+            );
+        }
+    }
+
+    None
+}
+
+fn run(source: &str) {
+    let scanner = Scanner::new(source.to_string());
+    let tokens = match scanner.scan_tokens() {
         Ok(tokens) => tokens,
         Err(errors) => {
             for error in errors {
                 eprintln!("{}", error);
             }
-            std::process::exit(1);
+            return;
         }
     };
 
-    let mut parser: Parser = Parser::new(tokens);
-    let statements: Vec<Stmt> = parser.parse();
+    let mut parser = Parser::new(tokens);
+    let statements = parser.parse();
 
-    let mut interpreter: Interpreter = Interpreter::new(statements);
+    let mut interpreter = Interpreter::new(statements);
     interpreter.interpret();
-
-    Ok(())
-}
-
-// Should look something like this at some point..?
-// fn main() -> io::Result<()> {
-//     let src = std::fs::read_to_string("input.rlox")?;
-//     let tokens = scanner::tokenize(&src)?;
-//     let ast    = parser::parse(tokens)?;
-//     semantic::check(&ast)?;
-//     codegen::emit(&ast)?;
-//     Ok(())
-// }
-
-fn get_path_argument() -> String {
-    let mut args: Args = env::args();
-    while let Some(arg) = args.next() {
-        if arg == "--path" {
-            return args
-                .next()
-                .expect("No value provided for `--path` argument!");
-        }
-    }
-
-    panic!("Required `--path` argument not provided!");
 }
