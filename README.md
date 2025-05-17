@@ -4,13 +4,15 @@
 
 A lox compiler written in Rust based on the book found at [Crafting Interpreters](https://craftinginterpreters.com).
 
-# Progress:
+## Progress:
 [Chapter 8. Statements and State](https://craftinginterpreters.com/statements-and-state.html#scope).
 
-# Todos:
-- Parser tests
-- Some PROPER error handling, cuz this is getting out of hand.
+## Todos:
+- Better way of showing RuntimeErrors.
 - More documentation and stuff... :)
 
-# Fun to Implement?
+## Fun to Implement?
 - https://craftinginterpreters.com/the-lox-language.html#precedence-and-grouping
+
+## Getting Started
+Some docs on how to get started with building and testing this project.
