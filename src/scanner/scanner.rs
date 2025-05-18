@@ -112,7 +112,7 @@ impl Scanner {
                         self.advance(); // consume '/'
                     } else {
                         return Err(self
-                            .error_at_line("Unterminated multi-line comment", comment_start_line));
+                            .error_at_line("unterminated multi-line comment", comment_start_line));
                     }
                 } else {
                     self.add_token(TokenType::Slash);
@@ -123,7 +123,7 @@ impl Scanner {
             '"' => self.string()?,
             c if c.is_ascii_digit() => self.number(),
             c if c.is_ascii_alphanumeric() || c == '_' => self.identifier(),
-            _ => return Err(self.error_at_current(format!("Unexpected character {}", c))),
+            _ => return Err(self.error_at_current("unexpected character")),
         }
 
         Ok(())
@@ -244,39 +244,27 @@ impl Scanner {
     }
 
     fn error_at_current(&self, message: impl Into<String>) -> ScanError {
-        let line_text = self.get_line_text(self.line);
         let lexeme = self.source[self.start..self.current.min(self.source.len())].to_string();
 
         ScanError {
             message: message.into(),
             context: ErrorContext {
                 line_number: self.line,
-                line: line_text,
                 lexeme,
             },
         }
     }
 
     fn error_at_line(&self, message: impl Into<String>, line: usize) -> ScanError {
-        let line_text = self.get_line_text(line);
         let lexeme = self.source[self.start..self.current.min(self.source.len())].to_string();
 
         ScanError {
             message: message.into(),
             context: ErrorContext {
                 line_number: line,
-                line: line_text,
                 lexeme,
             },
         }
-    }
-
-    fn get_line_text(&self, line_number: usize) -> String {
-        self.source
-            .lines()
-            .nth(line_number - 1)
-            .unwrap_or("")
-            .to_string()
     }
 }
 

@@ -60,7 +60,6 @@ fn error(message: String, token: Token) -> RuntimeError {
         message,
         context: ErrorContext {
             line_number: token.line,
-            line: "".into(),
             lexeme: token.lexeme,
         },
     }

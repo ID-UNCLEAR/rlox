@@ -7,6 +7,7 @@ mod semantics;
 mod tests;
 
 use crate::codegen::interpreter::Interpreter;
+use crate::common::source_map::set_source_map;
 use crate::parser::parser::Parser;
 use crate::scanner::Scanner;
 use std::env::Args;
@@ -66,7 +67,9 @@ fn get_path_argument() -> Option<String> {
     None
 }
 
-fn run(source: impl Into<String>) {
+fn run(source: &String) {
+    set_source_map(source.as_str());
+
     let tokens = Scanner::new(source).tokenize().unwrap_or_else(|| exit(65));
 
     let statements = Parser::new(tokens).parse().unwrap_or_else(|| exit(65));

@@ -106,7 +106,7 @@ impl Parser {
 
     fn expression_statement(&mut self) -> Result<Stmt, ParseError> {
         let expr = self.expression()?;
-        self.consume(&TokenType::SemiColon, "expect ';' after expression")?;
+        self.consume(&TokenType::SemiColon, "expected ';' after expression")?;
 
         Ok(Stmt::Expression {
             expression: Box::new(expr),
@@ -305,15 +305,6 @@ impl Parser {
         }
     }
 
-    fn reconstruct_line(&self, line_number: usize) -> String {
-        self.tokens
-            .iter()
-            .filter(|t| t.line == line_number)
-            .map(|t| t.lexeme.clone())
-            .collect::<Vec<_>>()
-            .join(" ")
-    }
-
     fn error(&self, message: &str) -> ParseError {
         let token = self.peek();
         let line_number = token.line;
@@ -322,7 +313,6 @@ impl Parser {
             message: message.into(),
             context: ErrorContext {
                 line_number,
-                line: self.reconstruct_line(line_number),
                 lexeme: token.lexeme.clone(),
             },
         }

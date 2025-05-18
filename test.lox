@@ -1,1 +1,7 @@
-print i;
+b = 2;
+
+print b;
+
+var bool = 1 == 1;
+
+print bool;
