@@ -1,5 +1,7 @@
+use crate::common::error_context::ErrorContext;
 use crate::common::keywords::keywords;
 use crate::common::{Literal, Token, TokenType};
+use crate::scanner::scan_error::ScanError;
 
 #[derive(Debug)]
 pub struct Scanner {
@@ -21,10 +23,15 @@ impl Scanner {
         }
     }
 
-    pub fn scan_tokens(mut self) -> Vec<Token> {
+    pub fn tokenize(mut self) -> Option<Vec<Token>> {
+        let mut has_error = false;
+
         while !self.is_at_end() {
             self.start = self.current;
-            self.scan_token();
+            if let Err(e) = self.scan_token() {
+                has_error = true;
+                eprintln!("{}", e);
+            }
         }
 
         self.tokens.push(Token {
@@ -34,15 +41,15 @@ impl Scanner {
             line: self.line,
         });
 
-        self.tokens
+        if has_error { None } else { Some(self.tokens) }
     }
 
     fn is_at_end(&self) -> bool {
         self.current >= self.source.len()
     }
 
-    fn scan_token(&mut self) {
-        let c: char = self.advance();
+    fn scan_token(&mut self) -> Result<(), ScanError> {
+        let c = self.advance();
 
         match c {
             '(' => self.add_token(TokenType::LeftParen),
@@ -89,6 +96,8 @@ impl Scanner {
                         self.advance();
                     }
                 } else if self.match_next_char('*') {
+                    let comment_start_line = self.line;
+
                     // Start of multi-line comment
                     while !(self.is_at_end() || self.peek() == '*' && self.peek_next() == '/') {
                         if self.peek() == '\n' {
@@ -102,7 +111,8 @@ impl Scanner {
                         self.advance(); // consume '*'
                         self.advance(); // consume '/'
                     } else {
-                        panic!("Unterminated multi-line comment at line {}", self.line);
+                        return Err(self
+                            .error_at_line("unterminated multi-line comment", comment_start_line));
                     }
                 } else {
                     self.add_token(TokenType::Slash);
@@ -110,15 +120,17 @@ impl Scanner {
             }
             ' ' | '\r' | '\t' => {} // Ignore whitespace
             '\n' => self.line += 1,
-            '"' => self.string(),
+            '"' => self.string()?,
             c if c.is_ascii_digit() => self.number(),
             c if c.is_ascii_alphanumeric() || c == '_' => self.identifier(),
-            _ => panic!("Unexpected character '{}' on line {}", c, self.line),
+            _ => return Err(self.error_at_current("unexpected character")),
         }
+
+        Ok(())
     }
 
     fn advance(&mut self) -> char {
-        let c: char = self
+        let c = self
             .source
             .chars()
             .nth(self.current)
@@ -133,7 +145,7 @@ impl Scanner {
     }
 
     fn add_token_literal(&mut self, token_type: TokenType, literal: Option<Literal>) {
-        let text: String = self.source[self.start..self.current].to_string();
+        let text = self.source[self.start..self.current].to_string();
         self.tokens.push(Token {
             token_type,
             lexeme: text,
@@ -171,7 +183,9 @@ impl Scanner {
         self.source.chars().nth(self.current + 1).unwrap()
     }
 
-    fn string(&mut self) {
+    fn string(&mut self) -> Result<(), ScanError> {
+        let start_line = self.line;
+
         // Trying to find the end of the string
         while self.peek() != '"' && !self.is_at_end() {
             if self.peek() == '\n' {
@@ -181,15 +195,17 @@ impl Scanner {
         }
 
         if self.is_at_end() {
-            panic!("Unterminated string at line {}", self.line);
+            return Err(self.error_at_line("Unterminated string", start_line));
         }
 
         // Get the closing "
         self.advance();
 
         // Trim the surrounding quotes of the value
-        let value: String = self.source[self.start + 1..self.current - 1].to_string();
+        let value = self.source[self.start + 1..self.current - 1].to_string();
         self.add_token_literal(TokenType::String, Some(Literal::String(value)));
+
+        Ok(())
     }
 
     fn number(&mut self) {
@@ -207,8 +223,8 @@ impl Scanner {
         }
 
         // Get the value and parse it as a string.
-        let text: &str = &self.source[self.start..self.current];
-        let value: f64 = text.parse::<f64>().expect("Failed to parse number");
+        let text = &self.source[self.start..self.current];
+        let value = text.parse::<f64>().expect("Failed to parse number");
 
         self.add_token_literal(TokenType::Number, Some(Literal::Number(value)));
     }
@@ -218,13 +234,37 @@ impl Scanner {
             self.advance();
         }
 
-        let text: &str = &self.source[self.start..self.current];
-        let token_type: TokenType = keywords()
+        let text = &self.source[self.start..self.current];
+        let token_type = keywords()
             .get(text)
             .cloned()
             .unwrap_or(TokenType::Identifier);
 
         self.add_token(token_type);
+    }
+
+    fn error_at_current(&self, message: impl Into<String>) -> ScanError {
+        let lexeme = self.source[self.start..self.current.min(self.source.len())].to_string();
+
+        ScanError {
+            message: message.into(),
+            context: ErrorContext {
+                line_number: self.line,
+                lexeme,
+            },
+        }
+    }
+
+    fn error_at_line(&self, message: impl Into<String>, line: usize) -> ScanError {
+        let lexeme = self.source[self.start..self.current.min(self.source.len())].to_string();
+
+        ScanError {
+            message: message.into(),
+            context: ErrorContext {
+                line_number: line,
+                lexeme,
+            },
+        }
     }
 }
 
@@ -235,13 +275,13 @@ mod tests {
     #[test]
     fn scan_single_character_tokens() {
         // Arrange
-        let source: &str = "(){},.-+;*/";
+        let source = "(){},.-+;*/";
 
         // Act
-        let tokens: Vec<Token> = Scanner::new(source).scan_tokens();
+        let tokens = Scanner::new(source).tokenize().unwrap();
 
         // Assert
-        let expected: Vec<TokenType> = vec![
+        let expected = vec![
             TokenType::LeftParen,
             TokenType::RightParen,
             TokenType::LeftBrace,
@@ -263,13 +303,13 @@ mod tests {
     #[test]
     fn scan_operators() {
         // Arrange
-        let source: &str = "! != = == > >= < <=";
+        let source = "! != = == > >= < <=";
 
         // Act
-        let tokens: Vec<Token> = Scanner::new(source).scan_tokens();
+        let tokens = Scanner::new(source).tokenize().unwrap();
 
         // Assert
-        let expected: Vec<TokenType> = vec![
+        let expected = vec![
             TokenType::Bang,
             TokenType::BangEqual,
             TokenType::Equal,
@@ -288,10 +328,10 @@ mod tests {
     #[test]
     fn scan_comment() {
         // Arrange
-        let source: &str = "// This is a comment!";
+        let source = "// This is a comment!";
 
         // Act
-        let tokens: Vec<Token> = Scanner::new(source).scan_tokens();
+        let tokens = Scanner::new(source).tokenize().unwrap();
 
         // Assert
         assert_eq!(tokens[0].token_type, TokenType::Eof);
@@ -300,31 +340,33 @@ mod tests {
     #[test]
     fn scan_multiline_comment() {
         // Arrange
-        let source: &str = "/* This is \n a multiline comment */";
+        let source = "/* This is \n a multiline comment */";
 
         // Act
-        let tokens: Vec<Token> = Scanner::new(source).scan_tokens();
+        let tokens = Scanner::new(source).tokenize().unwrap();
 
         // Assert
         assert_eq!(tokens[0].token_type, TokenType::Eof);
     }
 
     #[test]
-    #[should_panic(expected = "Unterminated multi-line comment")]
-    fn scan_unterminated_multiline_comment_panics() {
+    fn scan_unterminated_multiline_comment_returns_none() {
         // Arrange
-        let source: &str = "/* This is \n an unterminated multiline comment";
+        let source = "/* This is \n an unterminated multiline comment";
 
         // Act
-        Scanner::new(source).scan_tokens();
+        let result = Scanner::new(source).tokenize();
+
+        // Assert
+        assert!(result.is_none());
     }
 
     #[test]
     fn scan_string_literal() {
-        let source: &str = r#""hello""#;
+        let source = r#""hello""#;
 
         // Act
-        let tokens: Vec<Token> = Scanner::new(source).scan_tokens();
+        let tokens = Scanner::new(source).tokenize().unwrap();
 
         // Assert
         assert_eq!(tokens[0].token_type, TokenType::String);
@@ -336,19 +378,24 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Unterminated string")]
-    fn scan_unterminated_string_literal_panics() {
-        // Arrange, Act
-        Scanner::new(r#""hello"#).scan_tokens();
+    fn scan_unterminated_string_literal_returns_none() {
+        // Arrange
+        let source = r#""hello"#;
+
+        // Act
+        let result = Scanner::new(source).tokenize();
+
+        // Assert
+        assert!(result.is_none())
     }
 
     #[test]
     fn scan_number_literal() {
         // Arrange
-        let source: &str = "123.45";
+        let source = "123.45";
 
         // Act
-        let tokens: Vec<Token> = Scanner::new(source).scan_tokens();
+        let tokens = Scanner::new(source).tokenize().unwrap();
 
         // Assert
         assert_eq!(tokens[0].token_type, TokenType::Number);
@@ -359,10 +406,10 @@ mod tests {
     #[test]
     fn scan_keywords() {
         // Arrange
-        let source: &str = "class MyClass";
+        let source = "class MyClass";
 
         // Act
-        let tokens: Vec<Token> = Scanner::new(source).scan_tokens();
+        let tokens = Scanner::new(source).tokenize().unwrap();
 
         // Assert
         assert_eq!(tokens[0].token_type, TokenType::Class);
@@ -377,10 +424,10 @@ mod tests {
     #[test]
     fn ignore_whitespace() {
         // Arrange
-        let source: &str = " \t\n\r";
+        let source = " \t\n\r";
 
         // Act
-        let tokens: Vec<Token> = Scanner::new(source).scan_tokens();
+        let tokens = Scanner::new(source).tokenize().unwrap();
 
         // Assert
         assert_eq!(tokens[0].token_type, TokenType::Eof);
@@ -389,10 +436,10 @@ mod tests {
     #[test]
     fn scan_end_of_file() {
         // Arrange
-        let source: &str = "";
+        let source = "";
 
         // Act
-        let tokens: Vec<Token> = Scanner::new(source).scan_tokens();
+        let tokens = Scanner::new(source).tokenize().unwrap();
 
         // Assert
         assert_eq!(tokens[0].token_type, TokenType::Eof);
@@ -401,9 +448,14 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Unexpected character")]
-    fn scan_invalid_character_panics() {
-        // Arrange, Act
-        Scanner::new("@").scan_tokens();
+    fn scan_invalid_character_returns_none() {
+        // Arrange
+        let source = "@";
+
+        // Act
+        let result = Scanner::new(source).tokenize();
+
+        // Assert
+        assert!(result.is_none());
     }
 }
