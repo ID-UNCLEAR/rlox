@@ -130,7 +130,7 @@ impl Parser {
                 });
             }
 
-            return Err(self.error("invalid variable assignment".into()));
+            return Err(self.error("invalid variable assignment"));
         }
 
         Ok(expr)
