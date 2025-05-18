@@ -346,6 +346,7 @@ impl Parser {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::source_map::set_source_map;
     use crate::common::{Literal, Token, TokenType};
 
     fn token(token_type: TokenType, lexeme: &str, literal: Option<Literal>) -> Token {
@@ -560,6 +561,7 @@ mod tests {
     #[test]
     fn parse_primary_no_expression() {
         // Arrange
+        set_source_map("");
         let tokens: Vec<Token> = vec![
             token(TokenType::LeftParen, "(", None),
             token(TokenType::Number, "42", Some(Literal::Number(42.0))),

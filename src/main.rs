@@ -45,7 +45,7 @@ fn main() -> io::Result<()> {
 
             if !buffer.trim().is_empty() {
                 run(&buffer);
-                return Ok(());
+                continue;
             }
         }
     }

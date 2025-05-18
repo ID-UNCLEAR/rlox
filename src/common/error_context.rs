@@ -15,7 +15,7 @@ pub trait PrettyError: fmt::Display {
     fn pretty_fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let ctx = self.context();
         let line = get_source_map()
-            .get_line(ctx.line_number)
+            .and_then(|m| m.get_line(ctx.line_number))
             .unwrap_or("<source line unavailable>");
 
         let first_lexeme_line = ctx.lexeme.lines().next().unwrap_or("");

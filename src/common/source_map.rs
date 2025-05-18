@@ -13,8 +13,8 @@ pub fn set_source_map(source: &str) {
         .expect("SourceMap already set");
 }
 
-pub fn get_source_map() -> &'static SourceMap {
-    SOURCE_MAP.get().expect("SourceMap not initialized")
+pub fn get_source_map() -> Option<&'static SourceMap> {
+    SOURCE_MAP.get()
 }
 
 impl SourceMap {
