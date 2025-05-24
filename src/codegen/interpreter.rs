@@ -90,8 +90,8 @@ impl Interpreter {
             } => {
                 if is_truthy(&self.evaluate(condition.as_ref())?) {
                     self.execute(then_branch)?;
-                } else if else_branch.is_some() {
-                    self.execute(else_branch.as_ref().unwrap())?;
+                } else if let Some(else_branch) = else_branch {
+                    self.execute(else_branch)?;
                 }
 
                 Ok(())

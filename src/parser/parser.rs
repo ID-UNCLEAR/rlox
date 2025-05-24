@@ -82,6 +82,7 @@ impl Parser {
             return self.print_statement();
         }
 
+        // While Statement
         if self.match_token(&[TokenType::While]) {
             return self.while_statement();
         }
