@@ -1,4 +1,6 @@
 use crate::ast::{Expr, Stmt};
+use crate::codegen::callable::Callable;
+use crate::codegen::clock::Clock;
 use crate::codegen::environment::Environment;
 use crate::codegen::runtime_error::RuntimeError;
 use crate::common::TokenType;
@@ -8,12 +10,13 @@ use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone)]
 pub enum Value {
     Number(f64),
     String(String),
     Boolean(bool),
     Nil,
+    Callable(Rc<dyn Callable>),
 }
 
 impl fmt::Display for Value {
@@ -23,6 +26,36 @@ impl fmt::Display for Value {
             Value::String(s) => write!(f, "{}", s),
             Value::Boolean(b) => write!(f, "{}", b),
             Value::Nil => write!(f, "nil"),
+            Value::Callable(c) => write!(f, "{}", c.to_string()),
+        }
+    }
+}
+
+impl fmt::Debug for Value {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Value::Number(n) => write!(f, "Number({})", n),
+            Value::String(s) => write!(f, "String({:?})", s),
+            Value::Boolean(b) => write!(f, "Boolean({})", b),
+            Value::Nil => write!(f, "Nil"),
+            Value::Callable(_) => write!(f, "Callable(<fn>)"),
+        }
+    }
+}
+
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        use Value::*;
+
+        match (self, other) {
+            (Number(a), Number(b)) => a == b,
+            (String(a), String(b)) => a == b,
+            (Boolean(a), Boolean(b)) => a == b,
+            (Nil, Nil) => true,
+            // You can’t really compare two Callable instances meaningfully,
+            // unless you assign each a unique ID or name
+            (Callable(_), Callable(_)) => false,
+            _ => false,
         }
     }
 }
@@ -30,13 +63,21 @@ impl fmt::Display for Value {
 pub struct Interpreter {
     statements: Vec<Stmt>,
     environment: Rc<RefCell<Environment>>,
+    globals: Rc<RefCell<Environment>>,
 }
 
 impl Interpreter {
     pub fn new(stmts: Vec<Stmt>) -> Self {
+        let globals = Environment::new();
+
+        globals
+            .borrow_mut()
+            .define("clock".into(), Value::Callable(Rc::new(Clock {})));
+
         Interpreter {
+            globals: globals.clone(),
             statements: stmts,
-            environment: Environment::new(),
+            environment: globals,
         }
     }
 
@@ -108,31 +149,10 @@ impl Interpreter {
 
     pub fn evaluate(&mut self, expr: &Expr) -> Result<Value, RuntimeError> {
         match expr {
-            Expr::Variable { name } => self.environment.borrow().get_value(name),
             Expr::Assign { name, value } => {
                 let val = self.evaluate(value)?;
                 self.environment.borrow_mut().assign(name, val.clone())?;
                 Ok(val)
-            }
-            Expr::Literal { value } => match value {
-                Literal::Number(n) => Ok(Value::Number(*n)),
-                Literal::String(s) => Ok(Value::String(s.clone())),
-                Literal::Boolean(b) => Ok(Value::Boolean(*b)),
-                Literal::Nil => Ok(Value::Nil),
-            },
-
-            Expr::Grouping { expression } => self.evaluate(expression),
-
-            Expr::Unary { operator, right } => {
-                let right_val = self.evaluate(right)?;
-                match operator.token_type {
-                    TokenType::Minus => match right_val {
-                        Value::Number(n) => Ok(Value::Number(-n)),
-                        _ => Err(error("Operator token type mismatch".into(), operator)),
-                    },
-                    TokenType::Bang => Ok(Value::Boolean(!is_truthy(&right_val))),
-                    _ => Err(error("Operator token type mismatch".into(), operator)),
-                }
             }
             Expr::Binary {
                 left,
@@ -175,6 +195,42 @@ impl Interpreter {
                     _ => Err(error("Operator token type mismatch".into(), operator)),
                 }
             }
+            Expr::Call {
+                callee,
+                paren,
+                arguments,
+            } => {
+                let callee = self.evaluate(callee)?;
+
+                let mut args = Vec::new();
+                for argument in arguments {
+                    args.push(self.evaluate(argument)?);
+                }
+
+                if let Value::Callable(function) = callee {
+                    if args.len() != function.arity() {
+                        Err(error(
+                            format!(
+                                "expected {} arguments but received {}",
+                                function.arity(),
+                                arguments.len()
+                            ),
+                            paren,
+                        ))?;
+                    }
+
+                    function.call(self, args, paren)
+                } else {
+                    Err(error("callee must be a function".into(), paren))
+                }
+            }
+            Expr::Grouping { expression } => self.evaluate(expression),
+            Expr::Literal { value } => match value {
+                Literal::Number(n) => Ok(Value::Number(*n)),
+                Literal::String(s) => Ok(Value::String(s.clone())),
+                Literal::Boolean(b) => Ok(Value::Boolean(*b)),
+                Literal::Nil => Ok(Value::Nil),
+            },
             Expr::Logical {
                 left,
                 operator,
@@ -199,6 +255,18 @@ impl Interpreter {
                 let right_val = self.evaluate(right)?;
                 Ok(right_val)
             }
+            Expr::Unary { operator, right } => {
+                let right_val = self.evaluate(right)?;
+                match operator.token_type {
+                    TokenType::Minus => match right_val {
+                        Value::Number(n) => Ok(Value::Number(-n)),
+                        _ => Err(error("Operator token type mismatch".into(), operator)),
+                    },
+                    TokenType::Bang => Ok(Value::Boolean(!is_truthy(&right_val))),
+                    _ => Err(error("Operator token type mismatch".into(), operator)),
+                }
+            }
+            Expr::Variable { name } => self.environment.borrow().get_value(name),
         }
     }
 
