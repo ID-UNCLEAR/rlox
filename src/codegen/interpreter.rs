@@ -67,7 +67,11 @@ impl Interpreter {
                 Ok(())
             }
             Stmt::Var { name, initializer } => {
-                let value = self.evaluate(initializer)?;
+                let value = if let Some(expr) = initializer {
+                    self.evaluate(expr)?
+                } else {
+                    Value::Nil
+                };
 
                 self.environment
                     .borrow_mut()
@@ -78,6 +82,26 @@ impl Interpreter {
             Stmt::Block { statements } => {
                 let new_env = Environment::with_enclosing(self.environment.clone());
                 self.execute_block(statements, Environment::with_enclosing(new_env))
+            }
+            Stmt::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                if is_truthy(&self.evaluate(condition.as_ref())?) {
+                    self.execute(then_branch)?;
+                } else if let Some(else_branch) = else_branch {
+                    self.execute(else_branch)?;
+                }
+
+                Ok(())
+            }
+            Stmt::While { condition, body } => {
+                while is_truthy(&self.evaluate(condition.as_ref())?) {
+                    self.execute(body)?;
+                }
+
+                Ok(())
             }
         }
     }
@@ -110,7 +134,6 @@ impl Interpreter {
                     _ => Err(error("Operator token type mismatch".into(), operator)),
                 }
             }
-
             Expr::Binary {
                 left,
                 operator,
@@ -151,6 +174,30 @@ impl Interpreter {
 
                     _ => Err(error("Operator token type mismatch".into(), operator)),
                 }
+            }
+            Expr::Logical {
+                left,
+                operator,
+                right,
+            } => {
+                let left_val = self.evaluate(left)?;
+
+                match operator.token_type {
+                    TokenType::Or => {
+                        if is_truthy(&left_val) {
+                            return Ok(left_val);
+                        }
+                    }
+                    TokenType::And => {
+                        if !is_truthy(&left_val) {
+                            return Ok(left_val);
+                        }
+                    }
+                    _ => {}
+                }
+
+                let right_val = self.evaluate(right)?;
+                Ok(right_val)
             }
         }
     }
