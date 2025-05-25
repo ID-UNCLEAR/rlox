@@ -1,4 +1,5 @@
 use crate::common::error_context::{ErrorContext, PrettyError};
+use colored::Colorize;
 use std::fmt;
 
 #[derive(Debug)]
@@ -19,6 +20,7 @@ impl PrettyError for ParseError {
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "{}", "[ParseError]".red().bold())?;
         self.pretty_fmt(f)
     }
 }

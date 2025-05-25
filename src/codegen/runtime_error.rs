@@ -1,4 +1,5 @@
 use crate::common::error_context::{ErrorContext, PrettyError};
+use colored::Colorize;
 use std::fmt;
 
 #[derive(Clone, Debug)]
@@ -19,6 +20,7 @@ impl PrettyError for RuntimeError {
 
 impl fmt::Display for RuntimeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "{}", "[RuntimeError]".red().bold())?;
         self.pretty_fmt(f)
     }
 }
