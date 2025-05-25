@@ -2,6 +2,7 @@ use crate::ast::{Expr, Stmt};
 use crate::codegen::callable::Callable;
 use crate::codegen::clock::Clock;
 use crate::codegen::environment::Environment;
+use crate::codegen::function::Function;
 use crate::codegen::runtime_error::RuntimeError;
 use crate::common::TokenType;
 use crate::common::error_context::ErrorContext;
@@ -63,7 +64,7 @@ impl PartialEq for Value {
 pub struct Interpreter {
     statements: Vec<Stmt>,
     environment: Rc<RefCell<Environment>>,
-    globals: Rc<RefCell<Environment>>,
+    pub globals: Rc<RefCell<Environment>>,
 }
 
 impl Interpreter {
@@ -105,6 +106,21 @@ impl Interpreter {
             Stmt::Print { expression: expr } => {
                 let value = self.evaluate(expr)?;
                 println!("{}", value);
+                Ok(())
+            }
+            Stmt::Function {
+                name,
+                parameters: _parameters,
+                body: _body,
+            } => {
+                let function = Function {
+                    declaration: stmt.clone(),
+                };
+
+                self.environment
+                    .borrow_mut()
+                    .define(name.lexeme.clone(), Value::Callable(Rc::new(function)));
+
                 Ok(())
             }
             Stmt::Var { name, initializer } => {

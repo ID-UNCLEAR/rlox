@@ -5,13 +5,18 @@ use crate::common::Token;
 /// Statements DO something, not producing values
 /// For example:
 ///     print "Hello!";
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Stmt {
     Block {
         statements: Vec<Stmt>,
     },
     Expression {
         expression: Box<Expr>,
+    },
+    Function {
+        name: Token,
+        parameters: Vec<Token>,
+        body: Vec<Stmt>,
     },
     If {
         condition: Box<Expr>,

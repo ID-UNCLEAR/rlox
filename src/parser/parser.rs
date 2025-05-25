@@ -37,11 +37,65 @@ impl Parser {
     }
 
     fn declaration(&mut self) -> Result<Stmt, ParseError> {
+        if self.match_token(&[TokenType::Fun]) {
+            return self.function("function");
+        }
+
         if self.match_token(&[TokenType::Var]) {
             return self.variable_declaration();
         }
 
         self.statement()
+    }
+
+    fn function(&mut self, kind: impl Into<String>) -> Result<Stmt, ParseError> {
+        let kind = kind.into();
+        let name = self
+            .consume(
+                &TokenType::Identifier,
+                format!("expected {} name", kind).as_str(),
+            )?
+            .clone();
+
+        self.consume(
+            &TokenType::LeftParen,
+            format!("expected '(' after {} name", kind).as_str(),
+        )?;
+        let mut parameters = Vec::new();
+
+        if !self.check(&TokenType::RightParen) {
+            loop {
+                if parameters.len() >= 255 {
+                    return Err(self.error("can't have more than 255 parameters"));
+                }
+
+                parameters.push(
+                    self.consume(&TokenType::Identifier, "expected parameter name")?
+                        .clone(),
+                );
+
+                if !self.match_token(&[TokenType::Comma]) {
+                    break;
+                }
+            }
+        }
+
+        self.consume(&TokenType::RightParen, "expected ')' after parameters")?;
+
+        self.consume(
+            &TokenType::LeftBrace,
+            format!("expected '{{' before {} body", kind).as_str(),
+        )?;
+        let body_stmt = self.block_statement()?;
+        let body = match body_stmt {
+            Stmt::Block { statements } => statements,
+            _ => return Err(self.error("expected block statement for function body")),
+        };
+        Ok(Stmt::Function {
+            name,
+            parameters,
+            body,
+        })
     }
 
     fn variable_declaration(&mut self) -> Result<Stmt, ParseError> {

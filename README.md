@@ -5,7 +5,7 @@
 A Lox compiler written in Rust based on the book [Crafting Interpreters](https://craftinginterpreters.com) by Bob Nystrom.
 
 ## Progress
-Currently working through: [Chapter 10. Functions](https://craftinginterpreters.com/functions.html)
+Currently working through: [Chapter 10. Functions](https://craftinginterpreters.com/functions.html#function-objects)
 
 ## Todos
 

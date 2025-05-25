@@ -4,7 +4,7 @@ use crate::common::{Literal, Token};
 /// An expression is something that produces a value
 /// For example:
 ///     1 + 1 = 2
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Expr {
     Assign {
         name: Token,
